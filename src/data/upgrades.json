@@ -1,0 +1,295 @@
+{
+  "rapid_fire": {
+    "id": "rapid_fire",
+    "name": "Rapid Fire",
+    "description": "Fire rate +30%",
+    "tier": 1,
+    "icon": "⚡",
+    "effect": {
+      "type": "stat",
+      "stat": "fireRate",
+      "value": 0.3
+    }
+  },
+  "armor_plating": {
+    "id": "armor_plating",
+    "name": "Armor Plating",
+    "description": "Max HP +25, damage reduction +10%",
+    "tier": 1,
+    "icon": "🛡",
+    "effect": {
+      "type": "stat",
+      "stat": "maxHp",
+      "value": 25,
+      "secondaryStat": "damageReduction",
+      "secondaryValue": 0.1
+    }
+  },
+  "marker_rounds": {
+    "id": "marker_rounds",
+    "name": "Marker Rounds",
+    "description": "Your shots mark enemies for 3s",
+    "tier": 1,
+    "icon": "🎯",
+    "effect": {
+      "type": "onHit",
+      "action": "applyMark",
+      "duration": 3000
+    },
+    "synergyWith": "detonate_shot",
+    "synergyBonus": "+200% explosion damage to marked targets"
+  },
+  "detonate_shot": {
+    "id": "detonate_shot",
+    "name": "Detonator",
+    "description": "Critical hits create small explosions (50 damage, 80px radius)",
+    "tier": 1,
+    "icon": "💥",
+    "effect": {
+      "type": "onCrit",
+      "action": "createExplosion",
+      "damage": 50,
+      "radius": 80
+    },
+    "synergyWith": "marker_rounds",
+    "synergyBonus": "+200% explosion damage to marked targets"
+  },
+  "speed_boost": {
+    "id": "speed_boost",
+    "name": "Combat Rush",
+    "description": "Movement speed +20%",
+    "tier": 1,
+    "icon": "🏃",
+    "effect": {
+      "type": "stat",
+      "stat": "moveSpeed",
+      "value": 0.2
+    }
+  },
+  "piercing_rounds": {
+    "id": "piercing_rounds",
+    "name": "Piercing Rounds",
+    "description": "Projectiles pierce through 2 additional enemies",
+    "tier": 1,
+    "icon": "→",
+    "effect": {
+      "type": "stat",
+      "stat": "pierceCount",
+      "value": 2
+    }
+  },
+  "explosive_rounds": {
+    "id": "explosive_rounds",
+    "name": "Explosive Rounds",
+    "description": "All shots deal +40% splash damage in 60px radius",
+    "tier": 1,
+    "icon": "💣",
+    "effect": {
+      "type": "stat",
+      "stat": "splashDamage",
+      "value": 0.4,
+      "splashRadius": 60
+    }
+  },
+  "lifesteal": {
+    "id": "lifesteal",
+    "name": "Bloodthirst",
+    "description": "Heal for 10% of damage dealt",
+    "tier": 1,
+    "icon": "❤️",
+    "effect": {
+      "type": "stat",
+      "stat": "lifeSteal",
+      "value": 0.1
+    }
+  },
+  "crit_chance": {
+    "id": "crit_chance",
+    "name": "Precision",
+    "description": "Critical hit chance +20%",
+    "tier": 1,
+    "icon": "🎲",
+    "effect": {
+      "type": "stat",
+      "stat": "critChance",
+      "value": 0.2
+    }
+  },
+  "crit_damage": {
+    "id": "crit_damage",
+    "name": "Sharpshot",
+    "description": "Critical damage +50%",
+    "tier": 1,
+    "icon": "💢",
+    "effect": {
+      "type": "stat",
+      "stat": "critDamage",
+      "value": 0.5
+    }
+  },
+  "double_shot": {
+    "id": "double_shot",
+    "name": "Double Shot",
+    "description": "50% chance to fire an extra projectile",
+    "tier": 2,
+    "icon": "⚔️",
+    "effect": {
+      "type": "stat",
+      "stat": "doubleChance",
+      "value": 0.5
+    }
+  },
+  "rapid_fire_plus": {
+    "id": "rapid_fire_plus",
+    "name": "Hyper Fire",
+    "description": "Fire rate +50% (stacks with Rapid Fire)",
+    "tier": 2,
+    "icon": "⚡⚡",
+    "effect": {
+      "type": "stat",
+      "stat": "fireRate",
+      "value": 0.5
+    }
+  },
+  "armor_plus": {
+    "id": "armor_plus",
+    "name": "Iron Skin",
+    "description": "Max HP +50, damage reduction +15%",
+    "tier": 2,
+    "icon": "🛡️⚙️",
+    "effect": {
+      "type": "stat",
+      "stat": "maxHp",
+      "value": 50,
+      "secondaryStat": "damageReduction",
+      "secondaryValue": 0.15
+    }
+  },
+  "damage_boost": {
+    "id": "damage_boost",
+    "name": "Power Strike",
+    "description": "All damage +35%",
+    "tier": 2,
+    "icon": "⚔️",
+    "effect": {
+      "type": "stat",
+      "stat": "damageMultiplier",
+      "value": 0.35
+    }
+  },
+  "speed_plus": {
+    "id": "speed_plus",
+    "name": "Velocity",
+    "description": "Movement speed +35% (stacks with Combat Rush)",
+    "tier": 2,
+    "icon": "🏃💨",
+    "effect": {
+      "type": "stat",
+      "stat": "moveSpeed",
+      "value": 0.35
+    }
+  },
+  "explosion_mastery": {
+    "id": "explosion_mastery",
+    "name": "Explosion Mastery",
+    "description": "Explosion damage +100%, radius +30px",
+    "tier": 2,
+    "icon": "💥🔥",
+    "effect": {
+      "type": "stat",
+      "stat": "explosionDamage",
+      "value": 1.0,
+      "explosionRadius": 30
+    }
+  },
+  "vampirism": {
+    "id": "vampirism",
+    "name": "Vampirism",
+    "description": "Heal for 25% of damage dealt",
+    "tier": 2,
+    "icon": "🧛",
+    "effect": {
+      "type": "stat",
+      "stat": "lifeSteal",
+      "value": 0.25
+    }
+  },
+  "gun_mastery": {
+    "id": "gun_mastery",
+    "name": "Gun Mastery",
+    "description": "Fire rate +40%, damage +25%",
+    "tier": 2,
+    "icon": "🎯⚡",
+    "effect": {
+      "type": "stat",
+      "stat": "fireRate",
+      "value": 0.4,
+      "secondaryStat": "damageMultiplier",
+      "secondaryValue": 0.25
+    }
+  },
+  "ultimate_damage": {
+    "id": "ultimate_damage",
+    "name": "Annihilation",
+    "description": "All damage +100%",
+    "tier": 3,
+    "icon": "💀",
+    "effect": {
+      "type": "stat",
+      "stat": "damageMultiplier",
+      "value": 1.0
+    }
+  },
+  "ultimate_speed": {
+    "id": "ultimate_speed",
+    "name": "Supersonic",
+    "description": "Movement speed +100%",
+    "tier": 3,
+    "icon": "⚡🏃",
+    "effect": {
+      "type": "stat",
+      "stat": "moveSpeed",
+      "value": 1.0
+    }
+  },
+  "ultimate_defense": {
+    "id": "ultimate_defense",
+    "name": "Invincibility",
+    "description": "Max HP +150, damage reduction +40%",
+    "tier": 3,
+    "icon": "👑🛡️",
+    "effect": {
+      "type": "stat",
+      "stat": "maxHp",
+      "value": 150,
+      "secondaryStat": "damageReduction",
+      "secondaryValue": 0.4
+    }
+  },
+  "chain_lightning": {
+    "id": "chain_lightning",
+    "name": "Chain Lightning",
+    "description": "Shots arc to 3 nearby enemies",
+    "tier": 2,
+    "icon": "⚡🔗",
+    "effect": {
+      "type": "special",
+      "action": "chainLightning",
+      "chainTargets": 3
+    }
+  },
+  "meteor_strike": {
+    "id": "meteor_strike",
+    "name": "Meteor Strike",
+    "description": "Critical hits summon meteors (200 damage, 120px radius)",
+    "tier": 3,
+    "icon": "☄️",
+    "effect": {
+      "type": "onCrit",
+      "action": "createMeteor",
+      "damage": 200,
+      "radius": 120
+    }
+  }
+}
+

@@ -1,0 +1,436 @@
+import Phaser from 'phaser';
+import { Player } from '@/entities/Player';
+import { Enemy } from '@/entities/Enemy';
+import { Projectile } from '@/entities/Projectile';
+import { XPGem } from '@/entities/XPGem';
+import { Weapon } from '@/components/Weapon';
+import { CombatSystem } from '@/systems/CombatSystem';
+import { SpawnSystem } from '@/systems/SpawnSystem';
+import { UpgradeSystem } from '@/systems/UpgradeSystem';
+import { ReviveSystem } from '@/systems/ReviveSystem';
+import { WeaponConfig } from '@/types/GameTypes';
+
+export class GameScene extends Phaser.Scene {
+  // Entity pools
+  public players!: Phaser.GameObjects.Group;
+  public enemies!: Phaser.GameObjects.Group;
+  private projectiles!: Phaser.GameObjects.Group;
+  private xpGems!: Phaser.GameObjects.Group;
+
+  // Systems
+  private combatSystem!: CombatSystem;
+  public spawnSystem!: SpawnSystem;
+  public upgradeSystem!: UpgradeSystem;
+  private reviveSystem!: ReviveSystem;
+
+  // UI
+  private hud!: {
+    p1HP: Phaser.GameObjects.Text;
+    p2HP: Phaser.GameObjects.Text;
+    p1Ammo: Phaser.GameObjects.Text;
+    p2Ammo: Phaser.GameObjects.Text;
+    timer: Phaser.GameObjects.Text;
+    level: Phaser.GameObjects.Text;
+    xpBar: Phaser.GameObjects.Graphics;
+    notification: Phaser.GameObjects.Text;
+  };
+
+  // Game state
+  private isPaused: boolean = false;
+
+  constructor() {
+    super('GameScene');
+  }
+
+  preload(): void {
+    // Create a simple particle texture
+    const graphics = this.add.graphics();
+    graphics.fillStyle(0xffffff);
+    graphics.fillCircle(4, 4, 4);
+    graphics.generateTexture('particle', 8, 8);
+    graphics.destroy();
+  }
+
+  create(): void {
+    console.log('GameScene created');
+
+    // Set world bounds (large wraparound arena)
+    const worldSize = 2000;
+    this.physics.world.setBounds(0, 0, worldSize, worldSize);
+
+    // Setup camera
+    this.cameras.main.setBounds(0, 0, worldSize, worldSize);
+    this.cameras.main.setZoom(1);
+
+    // Create entity pools
+    this.createPools();
+
+    // Create players
+    this.createPlayers();
+
+    // Initialize systems
+    this.combatSystem = new CombatSystem(this);
+    this.spawnSystem = new SpawnSystem(this, this.enemies);
+    this.upgradeSystem = new UpgradeSystem(this);
+    this.reviveSystem = new ReviveSystem(this);
+
+    // Setup collisions
+    this.combatSystem.setupCollisions(
+      this.players,
+      this.enemies,
+      this.projectiles,
+      this.xpGems
+    );
+
+    // Setup camera to follow average position of both players
+    this.setupCamera();
+
+    // Create HUD
+    this.createHUD();
+
+    // Event listeners
+    this.setupEventListeners();
+
+    // Start spawning
+    console.log('Game started!');
+  }
+
+  private createPools(): void {
+    // Players pool
+    this.players = this.add.group({
+      runChildUpdate: true
+    });
+
+    // Enemies pool (pre-allocate 500)
+    this.enemies = this.add.group({
+      classType: Enemy,
+      maxSize: 800,
+      runChildUpdate: true
+    });
+
+    for (let i = 0; i < 500; i++) {
+      const enemy = new Enemy(this);
+      this.enemies.add(enemy, true);
+    }
+
+    // Projectiles pool (pre-allocate 1000)
+    this.projectiles = this.add.group({
+      classType: Projectile,
+      maxSize: 1000,
+      runChildUpdate: true
+    });
+
+    for (let i = 0; i < 1000; i++) {
+      const projectile = new Projectile(this);
+      this.projectiles.add(projectile, true);
+    }
+
+    // XP gems pool
+    this.xpGems = this.add.group({
+      classType: XPGem,
+      maxSize: 500,
+      runChildUpdate: true
+    });
+
+    for (let i = 0; i < 500; i++) {
+      const gem = new XPGem(this);
+      this.xpGems.add(gem, true);
+    }
+  }
+
+  private createPlayers(): void {
+    // Player 1 - Rapid Fire
+    const p1Weapon: WeaponConfig = {
+      id: 'rapid_gun',
+      type: 'auto',
+      damage: 10,
+      fireRate: 5, // 5 shots per second
+      projectileSpeed: 400,
+      projectileSize: 4,
+      pierce: 0,
+      color: 0xff0000
+    };
+
+    const player1 = new Player(this, {
+      id: 0,
+      color: 0xff0000,
+      startX: 900,
+      startY: 1000,
+      keys: {
+        up: 'W',
+        down: 'S',
+        left: 'A',
+        right: 'D',
+        heavy: 'SHIFT'
+      }
+    }, p1Weapon);
+
+    // Player 2 - Shotgun
+    const p2Weapon: WeaponConfig = {
+      id: 'shotgun',
+      type: 'auto',
+      damage: 8,
+      fireRate: 2, // 2 shots per second
+      projectileSpeed: 350,
+      projectileSize: 3,
+      pierce: 0,
+      spread: 30,
+      pellets: 5,
+      color: 0x0000ff
+    };
+
+    const player2 = new Player(this, {
+      id: 1,
+      color: 0x0000ff,
+      startX: 1100,
+      startY: 1000,
+      keys: {
+        up: 'UP',
+        down: 'DOWN',
+        left: 'LEFT',
+        right: 'RIGHT',
+        heavy: 'SPACE'
+      }
+    }, p2Weapon);
+
+    // Add heavy weapon (rocket launcher) to both
+    const heavyWeapon: WeaponConfig = {
+      id: 'rocket',
+      type: 'heavy',
+      damage: 100,
+      fireRate: 1,
+      projectileSpeed: 500,
+      projectileSize: 8,
+      pierce: 0,
+      color: 0xffff00
+    };
+
+    player1.heavyWeapon = new Weapon(this, player1, heavyWeapon);
+    player2.heavyWeapon = new Weapon(this, player2, heavyWeapon);
+
+    this.players.add(player1, true);
+    this.players.add(player2, true);
+  }
+
+  private setupCamera(): void {
+    // Camera follows the midpoint between players
+    this.cameras.main.startFollow(
+      this.players.getChildren()[0],
+      true,
+      0.1,
+      0.1
+    );
+  }
+
+  private createHUD(): void {
+    const cam = this.cameras.main;
+    
+    this.hud = {
+      p1HP: this.add.text(16, 16, 'P1 HP: 100/100', {
+        fontSize: '16px',
+        color: '#ff0000',
+        stroke: '#000000',
+        strokeThickness: 3
+      }).setScrollFactor(0),
+
+      p2HP: this.add.text(cam.width - 16, 16, 'P2 HP: 100/100', {
+        fontSize: '16px',
+        color: '#0000ff',
+        stroke: '#000000',
+        strokeThickness: 3
+      }).setScrollFactor(0).setOrigin(1, 0),
+
+      p1Ammo: this.add.text(16, 40, 'Ammo: 5', {
+        fontSize: '14px',
+        color: '#ffff00',
+        stroke: '#000000',
+        strokeThickness: 2
+      }).setScrollFactor(0),
+
+      p2Ammo: this.add.text(cam.width - 16, 40, 'Ammo: 5', {
+        fontSize: '14px',
+        color: '#ffff00',
+        stroke: '#000000',
+        strokeThickness: 2
+      }).setScrollFactor(0).setOrigin(1, 0),
+
+      timer: this.add.text(cam.width / 2, 16, '0:00', {
+        fontSize: '24px',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 4
+      }).setScrollFactor(0).setOrigin(0.5, 0),
+
+      level: this.add.text(cam.width / 2, 50, 'Level 1', {
+        fontSize: '18px',
+        color: '#00ff00',
+        stroke: '#000000',
+        strokeThickness: 3
+      }).setScrollFactor(0).setOrigin(0.5, 0),
+
+      xpBar: this.add.graphics().setScrollFactor(0),
+
+      notification: this.add.text(cam.width / 2, cam.height / 2, '', {
+        fontSize: '32px',
+        color: '#ffff00',
+        stroke: '#000000',
+        strokeThickness: 5,
+        align: 'center'
+      }).setScrollFactor(0).setOrigin(0.5).setAlpha(0)
+    };
+
+    this.updateXPBar();
+  }
+
+  private setupEventListeners(): void {
+    this.events.on('createProjectile', this.createProjectile, this);
+    this.events.on('dropXP', this.dropXP, this);
+    this.events.on('addXP', (amount: number) => this.upgradeSystem.addXP(amount), this);
+    this.events.on('enemyKilled', () => this.spawnSystem.onEnemyKilled(), this);
+    this.events.on('xpChanged', this.onXPChanged, this);
+    this.events.on('levelUp', this.onLevelUp, this);
+    this.events.on('showNotification', this.showNotification, this);
+    this.events.on('synergyActivated', this.onSynergyActivated, this);
+  }
+
+  private createProjectile(data: any): void {
+    const projectile = this.projectiles.getFirstDead(false) as Projectile;
+    if (projectile) {
+      projectile.activate(data);
+    }
+  }
+
+  private dropXP(x: number, y: number, value: number): void {
+    const gem = this.xpGems.getFirstDead(false) as XPGem;
+    if (gem) {
+      gem.activate(x, y, value);
+    }
+  }
+
+  private onXPChanged(totalXP: number, progress: number): void {
+    this.updateXPBar();
+  }
+
+  private onLevelUp(level: number): void {
+    this.hud.level.setText(`Level ${level}`);
+    this.showNotification(`LEVEL UP! Level ${level}`);
+  }
+
+  private showNotification(text: string): void {
+    this.hud.notification.setText(text);
+    this.hud.notification.setAlpha(1);
+
+    this.tweens.add({
+      targets: this.hud.notification,
+      alpha: 0,
+      duration: 2000,
+      delay: 1000
+    });
+  }
+
+  private onSynergyActivated(data: any): void {
+    this.showNotification('SYNERGY ACTIVATED!');
+    this.cameras.main.flash(200, 255, 255, 0);
+  }
+
+  private updateXPBar(): void {
+    const cam = this.cameras.main;
+    const barWidth = 300;
+    const barHeight = 10;
+    const x = (cam.width - barWidth) / 2;
+    const y = 80;
+
+    this.hud.xpBar.clear();
+
+    // Background
+    this.hud.xpBar.fillStyle(0x000000, 0.5);
+    this.hud.xpBar.fillRect(x, y, barWidth, barHeight);
+
+    // Progress
+    const progress = this.upgradeSystem.getXPProgress();
+    this.hud.xpBar.fillStyle(0x00ff00);
+    this.hud.xpBar.fillRect(x, y, barWidth * progress, barHeight);
+
+    // Border
+    this.hud.xpBar.lineStyle(2, 0xffffff);
+    this.hud.xpBar.strokeRect(x, y, barWidth, barHeight);
+  }
+
+  update(time: number, delta: number): void {
+    if (this.isPaused) return;
+
+    // Update players
+    const playerArray = this.players.getChildren() as Player[];
+    for (const player of playerArray) {
+      if (player.active) {
+        player.update(time, delta);
+      }
+    }
+
+    // Update enemies
+    const enemyArray = this.enemies.getChildren() as Enemy[];
+    for (const enemy of enemyArray) {
+      if (enemy.active) {
+        enemy.update(time, delta, playerArray);
+      }
+    }
+
+    // Update projectiles
+    const projectileArray = this.projectiles.getChildren() as Projectile[];
+    for (const projectile of projectileArray) {
+      if (projectile.active) {
+        projectile.update(time);
+      }
+    }
+
+    // Update XP gems
+    const gemArray = this.xpGems.getChildren() as XPGem[];
+    for (const gem of gemArray) {
+      if (gem.active) {
+        gem.update(time, delta, playerArray);
+      }
+    }
+
+    // Update systems
+    this.spawnSystem.update(time, delta);
+    this.reviveSystem.update(time);
+
+    // Update HUD
+    this.updateHUD();
+
+    // Update camera to follow midpoint
+    this.updateCameraTarget(playerArray);
+  }
+
+  private updateHUD(): void {
+    const players = this.players.getChildren() as Player[];
+    
+    if (players[0]) {
+      this.hud.p1HP.setText(`P1 HP: ${Math.ceil(players[0].health.current)}/${players[0].health.max}`);
+      this.hud.p1Ammo.setText(`Ammo: ${players[0].stats.ammo}`);
+    }
+    
+    if (players[1]) {
+      this.hud.p2HP.setText(`P2 HP: ${Math.ceil(players[1].health.current)}/${players[1].health.max}`);
+      this.hud.p2Ammo.setText(`Ammo: ${players[1].stats.ammo}`);
+    }
+
+    // Timer
+    const elapsed = this.spawnSystem.getElapsedTime();
+    const minutes = Math.floor(elapsed / 60000);
+    const seconds = Math.floor((elapsed % 60000) / 1000);
+    this.hud.timer.setText(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+  }
+
+  private updateCameraTarget(players: Player[]): void {
+    if (players.length !== 2) return;
+
+    const midX = (players[0].x + players[1].x) / 2;
+    const midY = (players[0].y + players[1].y) / 2;
+
+    // Smoothly move camera toward midpoint
+    const cam = this.cameras.main;
+    cam.scrollX += (midX - cam.width / 2 - cam.scrollX) * 0.1;
+    cam.scrollY += (midY - cam.height / 2 - cam.scrollY) * 0.1;
+  }
+}

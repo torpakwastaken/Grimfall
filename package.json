@@ -1,0 +1,22 @@
+{
+  "name": "duo-horde-survivor",
+  "version": "1.0.0",
+  "description": "2D co-op horde survivor built with Phaser 3 and TypeScript",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "keywords": ["phaser", "typescript", "game", "coop"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.7"
+  },
+  "dependencies": {
+    "phaser": "^3.70.0"
+  }
+}

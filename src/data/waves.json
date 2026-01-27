@@ -1,0 +1,66 @@
+{
+  "waves": [
+    {
+      "startTime": 0,
+      "duration": 60,
+      "enemies": [
+        { "type": "swarmer", "count": 20, "spawnRate": 2 }
+      ]
+    },
+    {
+      "startTime": 60,
+      "duration": 60,
+      "enemies": [
+        { "type": "swarmer", "count": 25, "spawnRate": 1.8 },
+        { "type": "shambler", "count": 10, "spawnRate": 3 }
+      ]
+    },
+    {
+      "startTime": 120,
+      "duration": 60,
+      "enemies": [
+        { "type": "swarmer", "count": 30, "spawnRate": 1.5 },
+        { "type": "shambler", "count": 15, "spawnRate": 2.5 },
+        { "type": "shieldbearer", "count": 5, "spawnRate": 5 }
+      ]
+    },
+    {
+      "startTime": 180,
+      "duration": 60,
+      "enemies": [
+        { "type": "swarmer", "count": 35, "spawnRate": 1.2 },
+        { "type": "shambler", "count": 20, "spawnRate": 2 },
+        { "type": "shieldbearer", "count": 8, "spawnRate": 4 },
+        { "type": "sniper", "count": 3, "spawnRate": 8 }
+      ]
+    },
+    {
+      "startTime": 240,
+      "duration": 60,
+      "enemies": [
+        { "type": "swarmer", "count": 40, "spawnRate": 1 },
+        { "type": "shambler", "count": 25, "spawnRate": 1.8 },
+        { "type": "shieldbearer", "count": 12, "spawnRate": 3 },
+        { "type": "sniper", "count": 5, "spawnRate": 6 }
+      ]
+    }
+  ],
+  "scaling": {
+    "hpPerMinute": 0.08,
+    "countPerMinute": 12,
+    "speedPerMinute": 0.02,
+    "spawnRateMultiplier": 0.95
+  },
+  "duoAdjustments": {
+    "hpMultiplier": 1.4,
+    "countMultiplier": 1.6,
+    "xpMultiplier": 1.25
+  },
+  "boss": {
+    "spawnTime": 300,
+    "type": "hulk",
+    "hp": 5000,
+    "damage": 40,
+    "speed": 50
+  }
+}
