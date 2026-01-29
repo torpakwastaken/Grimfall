@@ -203,7 +203,7 @@ export class VFXSystem {
     if (this.activeDamageNumbers >= this.MAX_DAMAGE_NUMBERS) return;
     
     const text = this.damageNumberPool.find(t => !t.visible);
-    if (!text) return;
+    if (!text || !text.scene) return; // Safety check - text must have valid scene
     
     this.activeDamageNumbers++;
     
@@ -339,6 +339,9 @@ export class VFXSystem {
   // === EVENT HANDLERS ===
 
   private onEnemyHit(data: { sprite: Phaser.GameObjects.Sprite, damage: number, isCrit: boolean }): void {
+    // Safety check - sprite must exist and be valid
+    if (!data.sprite || !data.sprite.active) return;
+    
     this.flashHit(data.sprite);
     this.showDamageNumber({
       x: data.sprite.x,

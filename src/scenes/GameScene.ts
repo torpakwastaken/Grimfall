@@ -137,13 +137,15 @@ export class GameScene extends Phaser.Scene {
       this.vfxSystem.setFancyVFX(profile.enableShaders);
     });
 
-    // Setup collisions
-    this.combatSystem.setupCollisions(
-      this.players,
-      this.enemies,
-      this.projectiles,
-      this.xpGems
-    );
+    // Setup collisions - ONLY on host (guest receives state, doesn't run combat)
+    if (this.isHost) {
+      this.combatSystem.setupCollisions(
+        this.players,
+        this.enemies,
+        this.projectiles,
+        this.xpGems
+      );
+    }
 
     // Setup camera to follow average position of both players
     this.setupCamera();
