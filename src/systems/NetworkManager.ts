@@ -78,6 +78,9 @@ export type NetworkMessage =
   | { type: 'player_died'; playerId: PlayerId }
   | { type: 'wave_complete'; wave: number }
   | { type: 'game_over'; finalScore: number }
+  | { type: 'level_up'; level: number; upgradeChoices: any[] }
+  | { type: 'upgrade_selected'; playerId: number; upgradeId: string }
+  | { type: 'upgrades_applied'; selections: { playerId: number; upgradeId: string }[] }
   | { type: 'ping' }
   | { type: 'pong'; latency: number }
   | { type: 'error'; message: string };
@@ -351,6 +354,31 @@ export class NetworkManager {
       if (this.isOfflineMode) {
         this.emit({ type: 'game_start' });
       }
+    }
+  }
+  
+  /**
+   * Send level up data with upgrade choices (host only)
+   */
+  sendLevelUp(level: number, upgradeChoices: any[]): void {
+    if (this.localPlayerId === 'player1') {
+      this.send({ type: 'level_up', level, upgradeChoices });
+    }
+  }
+  
+  /**
+   * Send upgrade selection (from local player)
+   */
+  sendUpgradeSelection(playerId: number, upgradeId: string): void {
+    this.send({ type: 'upgrade_selected', playerId, upgradeId });
+  }
+  
+  /**
+   * Send applied upgrades (host only, after both selected)
+   */
+  sendUpgradesApplied(selections: { playerId: number; upgradeId: string }[]): void {
+    if (this.localPlayerId === 'player1') {
+      this.send({ type: 'upgrades_applied', selections });
     }
   }
   

@@ -3,6 +3,7 @@ import { Player } from '@/entities/Player';
 import upgradeDataJson from '@/data/upgrades.json';
 import { UpgradeData } from '@/types/GameTypes';
 import { runtimeConfig } from './RuntimeConfig';
+import { network } from './NetworkManager';
 
 export class UpgradeSystem {
   private scene: Phaser.Scene;
@@ -28,9 +29,13 @@ export class UpgradeSystem {
   
   // Track player upgrades
   private playerUpgrades: Map<number, Set<string>> = new Map();
+  
+  // Network sync
+  private isHost: boolean = true;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
+    this.isHost = scene.registry.get('isHost') ?? true;
     
     // Load upgrade data
     Object.entries(upgradeDataJson).forEach(([key, data]) => {
@@ -43,6 +48,33 @@ export class UpgradeSystem {
     // Initialize player upgrade tracking
     this.playerUpgrades.set(0, new Set());
     this.playerUpgrades.set(1, new Set());
+    
+    // Setup network handlers for guest
+    this.setupNetworkHandlers();
+  }
+  
+  private setupNetworkHandlers(): void {
+    // Guest receives level up from host
+    network.on('level_up', (msg: any) => {
+      if (!this.isHost && msg.level && msg.upgradeChoices) {
+        console.log(`[UpgradeSystem] Guest received level up: ${msg.level}`);
+        this.currentLevel = msg.level;
+        this.showUpgradeScreen(msg.upgradeChoices);
+      }
+    });
+    
+    // Both receive upgrade applied confirmation
+    network.on('upgrades_applied', (msg: any) => {
+      if (msg.selections) {
+        console.log(`[UpgradeSystem] Received upgrades applied:`, msg.selections);
+        // Guest applies upgrades that host selected
+        if (!this.isHost) {
+          for (const sel of msg.selections) {
+            this.applyUpgrade(sel.playerId, sel.upgradeId);
+          }
+        }
+      }
+    });
   }
 
   private generateXPThresholds(maxLevel: number): void {
@@ -81,15 +113,30 @@ export class UpgradeSystem {
     this.currentLevel++;
     console.log(`Level up! Now level ${this.currentLevel}`);
     
+    // Only host generates upgrade choices
+    if (this.isHost) {
+      const upgradeChoices = this.generateUpgradeChoices();
+      
+      // Send to guest
+      network.sendLevelUp(this.currentLevel, upgradeChoices);
+      
+      // Show upgrade screen locally
+      this.showUpgradeScreen(upgradeChoices);
+    }
+    // Guest waits for level_up message from host
+    
+    // Emit for both GameScene HUD and debug overlay
+    this.scene.events.emit('levelUp', { level: this.currentLevel });
+  }
+  
+  private showUpgradeScreen(upgradeChoices: Array<{ playerId: number; upgrades: UpgradeData[] }>): void {
     // Pause game and show upgrade selection
     this.scene.scene.pause('GameScene');
     this.scene.scene.launch('UpgradeScene', {
       level: this.currentLevel,
-      upgradeChoices: this.generateUpgradeChoices()
+      upgradeChoices: upgradeChoices,
+      isHost: this.isHost
     });
-    
-    // Emit for both GameScene HUD and debug overlay
-    this.scene.events.emit('levelUp', { level: this.currentLevel });
   }
 
   private generateUpgradeChoices(): Array<{ playerId: number; upgrades: UpgradeData[] }> {

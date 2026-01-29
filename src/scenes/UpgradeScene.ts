@@ -1,11 +1,15 @@
 import Phaser from 'phaser';
 import { UpgradeData } from '@/types/GameTypes';
+import { network } from '@/systems/NetworkManager';
 
 export class UpgradeScene extends Phaser.Scene {
   private upgradeChoices!: Array<{ playerId: number; upgrades: UpgradeData[] }>;
   private level!: number;
   private selectedUpgrades: Map<number, string> = new Map();
   private cards: Phaser.GameObjects.Container[] = [];
+  private isHost: boolean = true;
+  private localPlayerId: number = 0; // Host controls P1 (0), Guest controls P2 (1)
+  private waitingText?: Phaser.GameObjects.Text;
 
   constructor() {
     super('UpgradeScene');
@@ -14,7 +18,48 @@ export class UpgradeScene extends Phaser.Scene {
   init(data: any): void {
     this.upgradeChoices = data.upgradeChoices;
     this.level = data.level;
+    this.isHost = data.isHost ?? true;
+    this.localPlayerId = this.isHost ? 0 : 1;
     this.selectedUpgrades.clear();
+    this.cards = [];
+    
+    // Setup network handlers
+    this.setupNetworkHandlers();
+  }
+  
+  private setupNetworkHandlers(): void {
+    // Receive partner's upgrade selection
+    network.on('upgrade_selected', (msg: any) => {
+      if (msg.playerId !== undefined && msg.upgradeId) {
+        console.log(`[UpgradeScene] Partner selected upgrade: P${msg.playerId} -> ${msg.upgradeId}`);
+        
+        // Mark as selected visually
+        this.selectedUpgrades.set(msg.playerId, msg.upgradeId);
+        this.markPartnerSelection(msg.playerId, msg.upgradeId);
+        
+        // Check if both selected
+        this.checkBothSelected();
+      }
+    });
+  }
+  
+  private markPartnerSelection(playerId: number, upgradeId: string): void {
+    // Find the card and mark it as selected
+    for (const card of this.cards) {
+      const cardPlayerId = (card as any).playerId;
+      const cardUpgradeId = (card as any).upgradeId;
+      
+      if (cardPlayerId === playerId && cardUpgradeId === upgradeId) {
+        const cardBg = card.getAt(0) as Phaser.GameObjects.Rectangle;
+        if (cardBg) {
+          cardBg.setFillStyle(0x004400);
+          cardBg.setStrokeStyle(4, 0x00ff00);
+        }
+        // Disable other cards for this player
+        this.disablePlayerCards(playerId, card);
+        break;
+      }
+    }
   }
 
   create(): void {
@@ -39,13 +84,22 @@ export class UpgradeScene extends Phaser.Scene {
       stroke: '#000000',
       strokeThickness: 4
     }).setOrigin(0.5);
+    
+    // Show which player this client controls
+    const controlText = this.isHost ? 'You control: Player 1 (Red)' : 'You control: Player 2 (Blue)';
+    this.add.text(centerX, 100, controlText, {
+      fontSize: '18px',
+      color: this.isHost ? '#ff6666' : '#6666ff',
+      stroke: '#000000',
+      strokeThickness: 3
+    }).setOrigin(0.5);
 
     // Player 1 upgrades (top half) - centered
     // 3 cards with 320px spacing = 640px total width, so offset by 320
-    this.createPlayerUpgradeSection(0, 120, centerX - 320);
+    this.createPlayerUpgradeSection(0, 140, centerX - 320);
 
     // Player 2 upgrades (bottom half) - centered
-    this.createPlayerUpgradeSection(1, 420, centerX - 320);
+    this.createPlayerUpgradeSection(1, 440, centerX - 320);
   }
 
   private createPlayerUpgradeSection(playerId: number, startY: number, startX: number): void {
@@ -53,9 +107,13 @@ export class UpgradeScene extends Phaser.Scene {
     const playerName = `Player ${playerId + 1}`;
     const cam = this.cameras.main;
     const centerX = cam.width / 2;
+    
+    // Indicate if this section is controlled by local player or partner
+    const isLocalPlayer = playerId === this.localPlayerId;
+    const headerSuffix = isLocalPlayer ? ' (You)' : ' (Partner)';
 
     // Player header - centered horizontally
-    this.add.text(centerX, startY - 40, playerName, {
+    this.add.text(centerX, startY - 40, playerName + headerSuffix, {
       fontSize: '32px',
       color: playerColor,
       stroke: '#000000',
@@ -72,24 +130,35 @@ export class UpgradeScene extends Phaser.Scene {
       const cardX = startX + index * cardSpacing;
       const cardY = startY + 80;
       
-      const card = this.createUpgradeCard(playerId, upgrade, cardX, cardY);
+      const card = this.createUpgradeCard(playerId, upgrade, cardX, cardY, isLocalPlayer);
       this.cards.push(card);
     });
+    
+    // If not local player, show "waiting for partner" text
+    if (!isLocalPlayer) {
+      this.waitingText = this.add.text(centerX, startY + 180, 'Waiting for partner to choose...', {
+        fontSize: '16px',
+        color: '#888888',
+        fontStyle: 'italic'
+      }).setOrigin(0.5);
+    }
   }
 
   private createUpgradeCard(
     playerId: number,
     upgrade: UpgradeData,
     x: number,
-    y: number
+    y: number,
+    isInteractive: boolean = true
   ): Phaser.GameObjects.Container {
     const card = this.add.container(x, y);
-    // Store playerId on the card for later reference
+    // Store playerId and upgradeId on the card for later reference
     (card as any).playerId = playerId;
+    (card as any).upgradeId = upgrade.id;
 
-    // Card background
-    const cardBg = this.add.rectangle(0, 0, 280, 200, 0x222222);
-    cardBg.setStrokeStyle(3, 0x666666);
+    // Card background - dimmed if not interactive
+    const cardBg = this.add.rectangle(0, 0, 280, 200, isInteractive ? 0x222222 : 0x181818);
+    cardBg.setStrokeStyle(3, isInteractive ? 0x666666 : 0x444444);
     card.add(cardBg);
 
     // Icon
@@ -128,24 +197,29 @@ export class UpgradeScene extends Phaser.Scene {
       card.add(synergy);
     }
 
-    // Make interactive
-    cardBg.setInteractive({ useHandCursor: true });
-    
-    cardBg.on('pointerover', () => {
-      cardBg.setFillStyle(0x333333);
-      cardBg.setStrokeStyle(4, 0xffff00);
-    });
+    // Make interactive only for local player's section
+    if (isInteractive) {
+      cardBg.setInteractive({ useHandCursor: true });
+      
+      cardBg.on('pointerover', () => {
+        cardBg.setFillStyle(0x333333);
+        cardBg.setStrokeStyle(4, 0xffff00);
+      });
 
-    cardBg.on('pointerout', () => {
-      if (!this.selectedUpgrades.has(playerId)) {
-        cardBg.setFillStyle(0x222222);
-        cardBg.setStrokeStyle(3, 0x666666);
-      }
-    });
+      cardBg.on('pointerout', () => {
+        if (!this.selectedUpgrades.has(playerId)) {
+          cardBg.setFillStyle(0x222222);
+          cardBg.setStrokeStyle(3, 0x666666);
+        }
+      });
 
-    cardBg.on('pointerdown', () => {
-      this.selectUpgrade(playerId, upgrade.id, card);
-    });
+      cardBg.on('pointerdown', () => {
+        this.selectUpgrade(playerId, upgrade.id, card);
+      });
+    } else {
+      // Dim non-interactive cards
+      card.setAlpha(0.7);
+    }
 
     return card;
   }
@@ -155,6 +229,9 @@ export class UpgradeScene extends Phaser.Scene {
     
     // Mark as selected
     this.selectedUpgrades.set(playerId, upgradeId);
+    
+    // Send selection to partner over network
+    network.sendUpgradeSelection(playerId, upgradeId);
 
     // Visual feedback
     const cardBg = card.getAt(0) as Phaser.GameObjects.Rectangle;
@@ -165,8 +242,18 @@ export class UpgradeScene extends Phaser.Scene {
 
     // Disable other cards for this player
     this.disablePlayerCards(playerId, card);
+    
+    // Hide waiting text if it exists
+    if (this.waitingText) {
+      this.waitingText.destroy();
+      this.waitingText = undefined;
+    }
 
     // Check if both players selected
+    this.checkBothSelected();
+  }
+  
+  private checkBothSelected(): void {
     if (this.selectedUpgrades.size === 2) {
       this.time.delayedCall(500, () => {
         this.applyUpgrades();
@@ -210,11 +297,23 @@ export class UpgradeScene extends Phaser.Scene {
       console.error('GameScene not found!');
       return;
     }
-
+    
+    // Build selections array
+    const selections: { playerId: number; upgradeId: string }[] = [];
     for (const [playerId, upgradeId] of this.selectedUpgrades) {
-      console.log(`Applying upgrade ${upgradeId} to player ${playerId}`);
-      gameScene.upgradeSystem.applyUpgrade(playerId, upgradeId);
+      selections.push({ playerId, upgradeId });
     }
+    
+    // Host applies upgrades and syncs to guest
+    if (this.isHost) {
+      for (const sel of selections) {
+        console.log(`Applying upgrade ${sel.upgradeId} to player ${sel.playerId}`);
+        gameScene.upgradeSystem.applyUpgrade(sel.playerId, sel.upgradeId);
+      }
+      // Send confirmation to guest
+      network.sendUpgradesApplied(selections);
+    }
+    // Guest waits for upgrades_applied message
 
     // Resume game and stop this scene
     console.log('Applying upgrades and resuming game...');

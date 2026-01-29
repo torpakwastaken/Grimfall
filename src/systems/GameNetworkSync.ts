@@ -36,6 +36,7 @@ export class GameNetworkSync {
   // Guest state
   private pendingState: GameStateSync | null = null;
   private partnerInput: LocalInput = { moveX: 0, moveY: 0, aimAngle: 0, firing: false };
+  private hasReceivedPartnerInput: boolean = false;
   
   // Entity tracking for guest
   private enemyMap: Map<string, Enemy> = new Map();
@@ -60,6 +61,7 @@ export class GameNetworkSync {
           aimAngle: msg.input.aimAngle,
           firing: msg.input.firing
         };
+        this.hasReceivedPartnerInput = true;
       }
     });
     
@@ -155,8 +157,8 @@ export class GameNetworkSync {
    * Returns in key-press format for easier use
    */
   getPartnerInput(): { up: boolean; down: boolean; left: boolean; right: boolean; firing: boolean } | null {
-    // Only return if we've received input
-    if (this.partnerInput.moveX === 0 && this.partnerInput.moveY === 0 && !this.partnerInput.firing) {
+    // Only return input if we've received at least one input packet from partner
+    if (!this.hasReceivedPartnerInput) {
       return null;
     }
     
