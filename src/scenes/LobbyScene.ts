@@ -196,9 +196,16 @@ export class LobbyScene extends Phaser.Scene {
   private async createRoom(): Promise<void> {
     this.state = 'creating';
     this.hideMenuButtons();
-    this.statusText.setText('Creating room...');
+    this.statusText.setText('Connecting to server...');
     
     try {
+      // Connect to WebSocket server first
+      const connected = await network.connect();
+      if (!connected) {
+        throw new Error('Failed to connect to server');
+      }
+      
+      this.statusText.setText('Creating room...');
       const roomCode = await network.createRoom();
       this.showHostingState(roomCode);
     } catch (e) {
@@ -302,9 +309,16 @@ export class LobbyScene extends Phaser.Scene {
   private async joinRoom(): Promise<void> {
     if (this.joinInput.length !== 6) return;
     
-    this.statusText.setText('Joining room...');
+    this.statusText.setText('Connecting to server...');
     
     try {
+      // Connect to WebSocket server first
+      const connected = await network.connect();
+      if (!connected) {
+        throw new Error('Failed to connect to server');
+      }
+      
+      this.statusText.setText('Joining room...');
       const roomInfo = await network.joinRoom(this.joinInput);
       this.showJoinedState(roomInfo);
     } catch (e) {
