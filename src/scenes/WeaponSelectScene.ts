@@ -59,6 +59,7 @@ export class WeaponSelectScene extends Phaser.Scene {
     this.myWeaponId = '';
     this.partnerSelected = false;
     this.partnerWeaponId = '';
+    this.weaponCards = []; // Reset weapon cards array
     
     this.cameras.main.setBackgroundColor(0x0a0a1a);
     
@@ -345,6 +346,12 @@ export class WeaponSelectScene extends Phaser.Scene {
   }
   
   private updateDisplay(): void {
+    // Safety check - ensure cards exist
+    if (!this.weaponCards || this.weaponCards.length === 0) {
+      console.warn('[WeaponSelect] No weapon cards available');
+      return;
+    }
+    
     // Update cursor position
     if (this.weaponCards[this.myIndex]) {
       const card = this.weaponCards[this.myIndex];
@@ -354,11 +361,15 @@ export class WeaponSelectScene extends Phaser.Scene {
     
     // Update my info panel
     const weapon = this.weapons[this.myIndex];
-    this.updateInfoPanelContent(this.infoPanel, weapon, this.mySelected);
+    if (weapon) {
+      this.updateInfoPanelContent(this.infoPanel, weapon, this.mySelected);
+    }
     
     // Update card highlights
     this.weaponCards.forEach((card, i) => {
+      if (!card) return;
       const bg = card.getAt(0) as Phaser.GameObjects.Rectangle;
+      if (!bg) return;
       if (i === this.myIndex) {
         bg.setFillStyle(0x2a2a4e, 1);
         if (this.mySelected) {
