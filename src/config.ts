@@ -10,7 +10,7 @@
 
 // Replace with your Render URL (e.g., 'wss://grimfall-relay.onrender.com')
 // Leave empty string for offline/solo mode only
-export const RELAY_SERVER_URL = '';
+export const RELAY_SERVER_URL = 'wss://grimfall.onrender.com/';
 
 // Example URLs:
 // Local testing:  'ws://localhost:8080'
