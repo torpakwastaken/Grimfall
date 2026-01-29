@@ -388,6 +388,11 @@ export class LobbyScene extends Phaser.Scene {
   }
   
   private proceedToWeaponSelect(): void {
+    // If host, tell the guest to also proceed
+    if (network.isHost()) {
+      network.startGame();
+    }
+    
     // Store network state in registry for other scenes
     this.registry.set('isHost', network.isHost());
     this.registry.set('playerId', network.getLocalPlayerId());
