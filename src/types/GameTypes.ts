@@ -30,6 +30,9 @@ export interface PlayerStats {
   damageReduction: number;
   ammo: number;
   maxAmmo: number;
+  lifeSteal?: number;
+  projectileCount?: number;
+  pierce?: number;
 }
 
 export interface WeaponConfig {

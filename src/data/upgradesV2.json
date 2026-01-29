@@ -1,0 +1,719 @@
+{
+  "upgrades": {
+    "damage_1": {
+      "id": "damage_1",
+      "name": "Sharpened Edge",
+      "description": "+15% base damage",
+      "icon": "⚔️",
+      "rarity": "common",
+      "category": "stat",
+      "trigger": "passive",
+      "effects": [
+        { "type": "stat_multiply", "stat": "damage", "value": 1.15 }
+      ],
+      "requirements": { "minLevel": 1 },
+      "stacking": { "maxStacks": 5, "diminishing": 0.9 },
+      "weight": 100,
+      "grantsTags": []
+    },
+    
+    "damage_2": {
+      "id": "damage_2",
+      "name": "Honed Blade",
+      "description": "+25% base damage",
+      "icon": "🗡️",
+      "rarity": "uncommon",
+      "category": "stat",
+      "trigger": "passive",
+      "effects": [
+        { "type": "stat_multiply", "stat": "damage", "value": 1.25 }
+      ],
+      "requirements": { "minLevel": 3, "hasUpgrade": ["damage_1"] },
+      "stacking": { "maxStacks": 3, "diminishing": 0.85 },
+      "weight": 60,
+      "grantsTags": []
+    },
+    
+    "fire_rate_1": {
+      "id": "fire_rate_1",
+      "name": "Rapid Fire",
+      "description": "+20% attack speed",
+      "icon": "💨",
+      "rarity": "common",
+      "category": "stat",
+      "trigger": "passive",
+      "effects": [
+        { "type": "stat_multiply", "stat": "fireRate", "value": 1.2 }
+      ],
+      "requirements": { "minLevel": 1 },
+      "stacking": { "maxStacks": 4, "diminishing": 0.85 },
+      "weight": 90,
+      "grantsTags": []
+    },
+    
+    "pierce_1": {
+      "id": "pierce_1",
+      "name": "Penetrating Rounds",
+      "description": "+2 pierce",
+      "icon": "➡️",
+      "rarity": "common",
+      "category": "stat",
+      "trigger": "passive",
+      "effects": [
+        { "type": "stat_add", "stat": "pierce", "value": 2 }
+      ],
+      "requirements": { "minLevel": 1, "requiredTags": ["ranged"] },
+      "stacking": { "maxStacks": 3, "diminishing": 1.0 },
+      "weight": 70,
+      "grantsTags": ["pierce"]
+    },
+    
+    "crit_chance_1": {
+      "id": "crit_chance_1",
+      "name": "Keen Eye",
+      "description": "+10% critical hit chance",
+      "icon": "🎯",
+      "rarity": "common",
+      "category": "stat",
+      "trigger": "passive",
+      "effects": [
+        { "type": "stat_add", "stat": "critChance", "value": 0.1 }
+      ],
+      "requirements": { "minLevel": 1 },
+      "stacking": { "maxStacks": 4, "diminishing": 0.9 },
+      "weight": 80,
+      "grantsTags": ["crit"]
+    },
+    
+    "crit_damage_1": {
+      "id": "crit_damage_1",
+      "name": "Brutal Strikes",
+      "description": "+30% critical damage",
+      "icon": "💥",
+      "rarity": "uncommon",
+      "category": "stat",
+      "trigger": "passive",
+      "effects": [
+        { "type": "stat_multiply", "stat": "critDamage", "value": 1.3 }
+      ],
+      "requirements": { "minLevel": 2, "requiredTags": ["crit"] },
+      "stacking": { "maxStacks": 3, "diminishing": 0.8 },
+      "weight": 50,
+      "grantsTags": []
+    },
+    
+    "lifesteal_1": {
+      "id": "lifesteal_1",
+      "name": "Vampiric Touch",
+      "description": "Heal 5% of damage dealt",
+      "icon": "🩸",
+      "rarity": "uncommon",
+      "category": "stat",
+      "trigger": "passive",
+      "effects": [
+        { "type": "stat_add", "stat": "lifesteal", "value": 0.05 }
+      ],
+      "requirements": { "minLevel": 2 },
+      "stacking": { "maxStacks": 4, "diminishing": 0.7 },
+      "weight": 60,
+      "grantsTags": ["lifesteal"]
+    },
+    
+    "burn_duration_1": {
+      "id": "burn_duration_1",
+      "name": "Lasting Flames",
+      "description": "+50% burn duration",
+      "icon": "🔥",
+      "rarity": "common",
+      "category": "stat",
+      "trigger": "passive",
+      "effects": [
+        { "type": "stat_multiply", "stat": "dotDuration", "value": 1.5 }
+      ],
+      "requirements": { "minLevel": 1, "requiredTags": ["burn"] },
+      "stacking": { "maxStacks": 3, "diminishing": 0.8 },
+      "weight": 70,
+      "grantsTags": []
+    },
+    
+    "slow_potency_1": {
+      "id": "slow_potency_1",
+      "name": "Deep Freeze",
+      "description": "+25% slow effectiveness",
+      "icon": "❄️",
+      "rarity": "common",
+      "category": "stat",
+      "trigger": "passive",
+      "effects": [
+        { "type": "stat_multiply", "stat": "slowPotency", "value": 1.25 }
+      ],
+      "requirements": { "minLevel": 1, "requiredTags": ["freeze"] },
+      "stacking": { "maxStacks": 3, "diminishing": 0.85 },
+      "weight": 70,
+      "grantsTags": []
+    },
+    
+    "chain_count_1": {
+      "id": "chain_count_1",
+      "name": "Arcing Current",
+      "description": "+1 chain target",
+      "icon": "⚡",
+      "rarity": "uncommon",
+      "category": "stat",
+      "trigger": "passive",
+      "effects": [
+        { "type": "stat_add", "stat": "chainCount", "value": 1 }
+      ],
+      "requirements": { "minLevel": 1, "requiredTags": ["chain"] },
+      "stacking": { "maxStacks": 4, "diminishing": 1.0 },
+      "weight": 60,
+      "grantsTags": []
+    },
+    
+    "poison_stacks_1": {
+      "id": "poison_stacks_1",
+      "name": "Virulent Strain",
+      "description": "+2 max poison stacks",
+      "icon": "☠️",
+      "rarity": "common",
+      "category": "stat",
+      "trigger": "passive",
+      "effects": [
+        { "type": "stat_add", "stat": "maxPoisonStacks", "value": 2 }
+      ],
+      "requirements": { "minLevel": 1, "requiredTags": ["poison"] },
+      "stacking": { "maxStacks": 3, "diminishing": 1.0 },
+      "weight": 70,
+      "grantsTags": []
+    },
+    
+    "split_shot": {
+      "id": "split_shot",
+      "name": "Split Shot",
+      "description": "Projectiles split into 2 on hit",
+      "icon": "🔀",
+      "rarity": "rare",
+      "category": "behavior",
+      "trigger": "on_hit",
+      "effects": [
+        { "type": "behavior_add", "behavior": "split_on_hit", "params": { "count": 2, "damageMultiplier": 0.5 } }
+      ],
+      "requirements": { "minLevel": 3, "requiredTags": ["ranged"] },
+      "stacking": { "maxStacks": 2, "diminishing": 0.6 },
+      "weight": 30,
+      "grantsTags": ["split"]
+    },
+    
+    "chain_lightning": {
+      "id": "chain_lightning",
+      "name": "Chain Lightning",
+      "description": "Attacks chain to 2 nearby enemies",
+      "icon": "⛓️",
+      "rarity": "rare",
+      "category": "behavior",
+      "trigger": "on_hit",
+      "effects": [
+        { "type": "behavior_add", "behavior": "chain_on_hit", "params": { "count": 2, "range": 150, "damageMultiplier": 0.6 } }
+      ],
+      "requirements": { "minLevel": 4, "excludeTags": ["chain"] },
+      "stacking": { "maxStacks": 2, "diminishing": 0.5 },
+      "weight": 25,
+      "grantsTags": ["chain"]
+    },
+    
+    "explosive_rounds": {
+      "id": "explosive_rounds",
+      "name": "Explosive Rounds",
+      "description": "Attacks explode for 40% AoE damage",
+      "icon": "💣",
+      "rarity": "rare",
+      "category": "behavior",
+      "trigger": "on_hit",
+      "effects": [
+        { "type": "behavior_add", "behavior": "explode_on_hit", "params": { "radius": 60, "damageMultiplier": 0.4 } }
+      ],
+      "requirements": { "minLevel": 3, "requiredTags": ["ranged"], "excludeTags": ["aoe"] },
+      "stacking": { "maxStacks": 1, "diminishing": 1.0 },
+      "weight": 25,
+      "grantsTags": ["aoe", "explosive"]
+    },
+    
+    "homing": {
+      "id": "homing",
+      "name": "Seeking Projectiles",
+      "description": "Projectiles gently home toward enemies",
+      "icon": "🎯",
+      "rarity": "uncommon",
+      "category": "behavior",
+      "trigger": "passive",
+      "effects": [
+        { "type": "behavior_add", "behavior": "homing", "params": { "turnRate": 2.0, "seekRange": 150 } }
+      ],
+      "requirements": { "minLevel": 2, "requiredTags": ["ranged"] },
+      "stacking": { "maxStacks": 2, "diminishing": 0.6 },
+      "weight": 40,
+      "grantsTags": []
+    },
+    
+    "bounce": {
+      "id": "bounce",
+      "name": "Ricochet",
+      "description": "Projectiles bounce off walls and enemies",
+      "icon": "🔁",
+      "rarity": "uncommon",
+      "category": "behavior",
+      "trigger": "passive",
+      "effects": [
+        { "type": "behavior_add", "behavior": "bounce", "params": { "count": 3, "damageRetention": 0.8 } }
+      ],
+      "requirements": { "minLevel": 2, "requiredTags": ["ranged"], "excludeTags": ["chain"] },
+      "stacking": { "maxStacks": 2, "diminishing": 0.7 },
+      "weight": 35,
+      "grantsTags": ["chain"]
+    },
+    
+    "linger": {
+      "id": "linger",
+      "name": "Lingering Effect",
+      "description": "Projectiles leave damaging zones for 2s",
+      "icon": "🌫️",
+      "rarity": "rare",
+      "category": "behavior",
+      "trigger": "on_hit",
+      "effects": [
+        { "type": "behavior_add", "behavior": "create_zone_on_hit", "params": { "duration": 2000, "radius": 40, "damageMultiplier": 0.2 } }
+      ],
+      "requirements": { "minLevel": 4 },
+      "stacking": { "maxStacks": 2, "diminishing": 0.5 },
+      "weight": 20,
+      "grantsTags": ["aoe", "dot"]
+    },
+    
+    "execute": {
+      "id": "execute",
+      "name": "Executioner",
+      "description": "+100% damage to enemies below 20% HP",
+      "icon": "☠️",
+      "rarity": "uncommon",
+      "category": "conditional",
+      "trigger": "on_hit",
+      "effects": [
+        { "type": "conditional_damage", "condition": "target_low_hp", "threshold": 0.2, "damageMultiplier": 2.0 }
+      ],
+      "requirements": { "minLevel": 3 },
+      "stacking": { "maxStacks": 1, "diminishing": 1.0 },
+      "weight": 40,
+      "grantsTags": ["execute"]
+    },
+    
+    "glass_cannon": {
+      "id": "glass_cannon",
+      "name": "Glass Cannon",
+      "description": "+50% damage, -20% max HP",
+      "icon": "🔮",
+      "rarity": "rare",
+      "category": "tradeoff",
+      "trigger": "passive",
+      "effects": [
+        { "type": "stat_multiply", "stat": "damage", "value": 1.5 },
+        { "type": "stat_multiply", "stat": "maxHp", "value": 0.8 }
+      ],
+      "requirements": { "minLevel": 5 },
+      "stacking": { "maxStacks": 2, "diminishing": 0.7 },
+      "weight": 20,
+      "grantsTags": []
+    },
+    
+    "berserker": {
+      "id": "berserker",
+      "name": "Berserker",
+      "description": "+3% damage per 1% missing HP",
+      "icon": "😤",
+      "rarity": "rare",
+      "category": "conditional",
+      "trigger": "passive",
+      "effects": [
+        { "type": "conditional_damage", "condition": "missing_hp_percent", "scaling": 3.0 }
+      ],
+      "requirements": { "minLevel": 4 },
+      "stacking": { "maxStacks": 1, "diminishing": 1.0 },
+      "weight": 25,
+      "grantsTags": []
+    },
+    
+    "overkill": {
+      "id": "overkill",
+      "name": "Overkill",
+      "description": "Excess kill damage chains to nearby enemies",
+      "icon": "⚡",
+      "rarity": "rare",
+      "category": "behavior",
+      "trigger": "on_kill",
+      "effects": [
+        { "type": "behavior_add", "behavior": "overkill_damage", "params": { "range": 100, "maxTargets": 3 } }
+      ],
+      "requirements": { "minLevel": 5 },
+      "stacking": { "maxStacks": 1, "diminishing": 1.0 },
+      "weight": 20,
+      "grantsTags": ["chain"]
+    },
+    
+    "soul_harvest": {
+      "id": "soul_harvest",
+      "name": "Soul Harvest",
+      "description": "+2% damage per kill this wave (max 50%)",
+      "icon": "👻",
+      "rarity": "uncommon",
+      "category": "scaling",
+      "trigger": "on_kill",
+      "effects": [
+        { "type": "stacking_buff", "stat": "damage", "perStack": 0.02, "maxStacks": 25, "resetOn": "wave_end" }
+      ],
+      "requirements": { "minLevel": 3 },
+      "stacking": { "maxStacks": 1, "diminishing": 1.0 },
+      "weight": 35,
+      "grantsTags": []
+    },
+    
+    "momentum": {
+      "id": "momentum",
+      "name": "Momentum",
+      "description": "+5% fire rate per second not hit (max 50%)",
+      "icon": "🏃",
+      "rarity": "uncommon",
+      "category": "scaling",
+      "trigger": "passive",
+      "effects": [
+        { "type": "time_scaling_buff", "stat": "fireRate", "perSecond": 0.05, "maxBonus": 0.5, "resetOn": "take_damage" }
+      ],
+      "requirements": { "minLevel": 2 },
+      "stacking": { "maxStacks": 1, "diminishing": 1.0 },
+      "weight": 40,
+      "grantsTags": []
+    },
+    
+    "partner_damage_share": {
+      "id": "partner_damage_share",
+      "name": "Battle Bond",
+      "description": "When partner deals damage, deal 10% of it to your target",
+      "icon": "🤝",
+      "rarity": "rare",
+      "category": "coop",
+      "trigger": "partner_hit",
+      "effects": [
+        { "type": "echo_damage", "source": "partner", "damagePercent": 0.1 }
+      ],
+      "requirements": { "minLevel": 3 },
+      "stacking": { "maxStacks": 3, "diminishing": 0.7 },
+      "weight": 20,
+      "grantsTags": ["bond"]
+    },
+    
+    "partner_kill_buff": {
+      "id": "partner_kill_buff",
+      "name": "Shared Glory",
+      "description": "When partner kills, gain 20% damage for 3s",
+      "icon": "🏆",
+      "rarity": "uncommon",
+      "category": "coop",
+      "trigger": "partner_kill",
+      "effects": [
+        { "type": "temp_buff", "stat": "damage", "value": 1.2, "duration": 3000 }
+      ],
+      "requirements": { "minLevel": 2 },
+      "stacking": { "maxStacks": 3, "diminishing": 0.6 },
+      "weight": 30,
+      "grantsTags": ["bond"]
+    },
+    
+    "proximity_boost": {
+      "id": "proximity_boost",
+      "name": "Together Strong",
+      "description": "+20% damage when near partner",
+      "icon": "💪",
+      "rarity": "uncommon",
+      "category": "coop",
+      "trigger": "passive",
+      "effects": [
+        { "type": "conditional_damage", "condition": "near_partner", "range": 200, "damageMultiplier": 1.2 }
+      ],
+      "requirements": { "minLevel": 1 },
+      "stacking": { "maxStacks": 2, "diminishing": 0.6 },
+      "weight": 35,
+      "grantsTags": ["bond"]
+    },
+    
+    "mark_applicator": {
+      "id": "mark_applicator",
+      "name": "Mark of Doom",
+      "description": "Attacks mark enemies. Marked enemies take +20% damage from partner.",
+      "icon": "🎯",
+      "rarity": "rare",
+      "category": "coop",
+      "trigger": "on_hit",
+      "effects": [
+        { "type": "apply_status", "status": "marked", "duration": 5000 },
+        { "type": "partner_damage_amp", "condition": "target_marked", "value": 1.2 }
+      ],
+      "requirements": { "minLevel": 4 },
+      "stacking": { "maxStacks": 1, "diminishing": 1.0 },
+      "weight": 20,
+      "grantsTags": ["mark", "prime"]
+    },
+    
+    "marked_detonator": {
+      "id": "marked_detonator",
+      "name": "Detonate Mark",
+      "description": "Hitting marked enemies causes explosion (150% base damage)",
+      "icon": "💥",
+      "rarity": "rare",
+      "category": "coop",
+      "trigger": "on_hit",
+      "effects": [
+        { "type": "conditional_explosion", "condition": "target_marked", "radius": 80, "damageMultiplier": 1.5, "consumeMark": true }
+      ],
+      "requirements": { "minLevel": 4, "partnerHasTag": ["mark"] },
+      "stacking": { "maxStacks": 1, "diminishing": 1.0 },
+      "weight": 15,
+      "grantsTags": ["detonate", "combo"]
+    },
+    
+    "burn_spreader": {
+      "id": "burn_spreader",
+      "name": "Inferno Chain",
+      "description": "Killing burning enemies spreads burn to 3 nearby",
+      "icon": "🔥",
+      "rarity": "rare",
+      "category": "behavior",
+      "trigger": "on_kill",
+      "effects": [
+        { "type": "status_spread", "status": "burning", "range": 120, "count": 3 }
+      ],
+      "requirements": { "minLevel": 3, "requiredTags": ["burn"] },
+      "stacking": { "maxStacks": 2, "diminishing": 0.7 },
+      "weight": 25,
+      "grantsTags": []
+    },
+    
+    "freeze_shatter": {
+      "id": "freeze_shatter",
+      "name": "Shatter",
+      "description": "Frozen enemies explode on death for 200% damage",
+      "icon": "❄️",
+      "rarity": "rare",
+      "category": "behavior",
+      "trigger": "on_kill",
+      "effects": [
+        { "type": "conditional_explosion", "condition": "target_frozen", "radius": 100, "damageMultiplier": 2.0 }
+      ],
+      "requirements": { "minLevel": 4, "requiredTags": ["freeze"] },
+      "stacking": { "maxStacks": 1, "diminishing": 1.0 },
+      "weight": 20,
+      "grantsTags": ["aoe"]
+    },
+    
+    "shock_chain_amp": {
+      "id": "shock_chain_amp",
+      "name": "Conductive",
+      "description": "Chain damage +50%. Shocked enemies chain further.",
+      "icon": "⚡",
+      "rarity": "rare",
+      "category": "behavior",
+      "trigger": "passive",
+      "effects": [
+        { "type": "stat_multiply", "stat": "chainDamage", "value": 1.5 },
+        { "type": "conditional_stat", "condition": "target_shocked", "stat": "chainCount", "bonus": 2 }
+      ],
+      "requirements": { "minLevel": 3, "requiredTags": ["chain", "shock"] },
+      "stacking": { "maxStacks": 2, "diminishing": 0.6 },
+      "weight": 20,
+      "grantsTags": []
+    },
+    
+    "aoe_size_1": {
+      "id": "aoe_size_1",
+      "name": "Wider Impact",
+      "description": "+30% AoE radius",
+      "icon": "🌊",
+      "rarity": "common",
+      "category": "stat",
+      "trigger": "passive",
+      "effects": [
+        { "type": "stat_multiply", "stat": "aoeRadius", "value": 1.3 }
+      ],
+      "requirements": { "minLevel": 1, "requiredTags": ["aoe"] },
+      "stacking": { "maxStacks": 3, "diminishing": 0.8 },
+      "weight": 60,
+      "grantsTags": []
+    },
+    
+    "projectile_count_1": {
+      "id": "projectile_count_1",
+      "name": "Extra Rounds",
+      "description": "+1 projectile per shot",
+      "icon": "🔫",
+      "rarity": "rare",
+      "category": "stat",
+      "trigger": "passive",
+      "effects": [
+        { "type": "stat_add", "stat": "projectileCount", "value": 1 }
+      ],
+      "requirements": { "minLevel": 3, "requiredTags": ["ranged"] },
+      "stacking": { "maxStacks": 3, "diminishing": 1.0 },
+      "weight": 30,
+      "grantsTags": []
+    },
+    
+    "movespeed_1": {
+      "id": "movespeed_1",
+      "name": "Swift Feet",
+      "description": "+15% movement speed",
+      "icon": "👟",
+      "rarity": "common",
+      "category": "stat",
+      "trigger": "passive",
+      "effects": [
+        { "type": "stat_multiply", "stat": "moveSpeed", "value": 1.15 }
+      ],
+      "requirements": { "minLevel": 1 },
+      "stacking": { "maxStacks": 3, "diminishing": 0.8 },
+      "weight": 70,
+      "grantsTags": []
+    },
+    
+    "dodge_chance": {
+      "id": "dodge_chance",
+      "name": "Evasion",
+      "description": "10% chance to dodge attacks",
+      "icon": "💨",
+      "rarity": "uncommon",
+      "category": "stat",
+      "trigger": "passive",
+      "effects": [
+        { "type": "stat_add", "stat": "dodgeChance", "value": 0.1 }
+      ],
+      "requirements": { "minLevel": 2 },
+      "stacking": { "maxStacks": 4, "diminishing": 0.7 },
+      "weight": 50,
+      "grantsTags": []
+    },
+    
+    "thorns": {
+      "id": "thorns",
+      "name": "Thorns",
+      "description": "Return 20% damage to attackers",
+      "icon": "🌵",
+      "rarity": "uncommon",
+      "category": "behavior",
+      "trigger": "on_take_damage",
+      "effects": [
+        { "type": "reflect_damage", "percent": 0.2, "range": 100 }
+      ],
+      "requirements": { "minLevel": 3 },
+      "stacking": { "maxStacks": 3, "diminishing": 0.7 },
+      "weight": 40,
+      "grantsTags": []
+    },
+    
+    "shield_on_kill": {
+      "id": "shield_on_kill",
+      "name": "Soul Shield",
+      "description": "Gain 5 shield on kill (max 30)",
+      "icon": "🛡️",
+      "rarity": "uncommon",
+      "category": "behavior",
+      "trigger": "on_kill",
+      "effects": [
+        { "type": "gain_shield", "amount": 5, "maxShield": 30 }
+      ],
+      "requirements": { "minLevel": 2 },
+      "stacking": { "maxStacks": 2, "diminishing": 0.6 },
+      "weight": 45,
+      "grantsTags": []
+    },
+    
+    "xp_magnet": {
+      "id": "xp_magnet",
+      "name": "XP Magnet",
+      "description": "+50% XP pickup range",
+      "icon": "🧲",
+      "rarity": "common",
+      "category": "stat",
+      "trigger": "passive",
+      "effects": [
+        { "type": "stat_multiply", "stat": "xpRange", "value": 1.5 }
+      ],
+      "requirements": { "minLevel": 1 },
+      "stacking": { "maxStacks": 3, "diminishing": 0.7 },
+      "weight": 60,
+      "grantsTags": []
+    },
+    
+    "shared_xp": {
+      "id": "shared_xp",
+      "name": "Shared Knowledge",
+      "description": "Partner gains 25% of XP you collect",
+      "icon": "📚",
+      "rarity": "uncommon",
+      "category": "coop",
+      "trigger": "passive",
+      "effects": [
+        { "type": "share_resource", "resource": "xp", "percent": 0.25 }
+      ],
+      "requirements": { "minLevel": 2 },
+      "stacking": { "maxStacks": 2, "diminishing": 0.5 },
+      "weight": 30,
+      "grantsTags": ["bond"]
+    },
+    
+    "revive_speed": {
+      "id": "revive_speed",
+      "name": "Quick Rescue",
+      "description": "+50% revive speed",
+      "icon": "⏱️",
+      "rarity": "common",
+      "category": "coop",
+      "trigger": "passive",
+      "effects": [
+        { "type": "stat_multiply", "stat": "reviveSpeed", "value": 1.5 }
+      ],
+      "requirements": { "minLevel": 1 },
+      "stacking": { "maxStacks": 2, "diminishing": 0.6 },
+      "weight": 40,
+      "grantsTags": []
+    },
+    
+    "last_stand": {
+      "id": "last_stand",
+      "name": "Last Stand",
+      "description": "When downed, explode for 500% base damage",
+      "icon": "💀",
+      "rarity": "rare",
+      "category": "behavior",
+      "trigger": "on_down",
+      "effects": [
+        { "type": "explosion", "damageMultiplier": 5.0, "radius": 150 }
+      ],
+      "requirements": { "minLevel": 4 },
+      "stacking": { "maxStacks": 1, "diminishing": 1.0 },
+      "weight": 20,
+      "grantsTags": []
+    }
+  },
+  
+  "rarityWeights": {
+    "common": { "baseWeight": 100, "levelScaling": -5 },
+    "uncommon": { "baseWeight": 50, "levelScaling": 2 },
+    "rare": { "baseWeight": 20, "levelScaling": 3 },
+    "epic": { "baseWeight": 5, "levelScaling": 2 },
+    "legendary": { "baseWeight": 1, "levelScaling": 1 }
+  },
+  
+  "upgradePoolRules": {
+    "offersPerLevel": 3,
+    "rerollCost": { "base": 50, "perReroll": 25 },
+    "guaranteedRareAtLevel": [5, 10, 15, 20],
+    "coopUpgradeChance": 0.25,
+    "tagSynergyBonus": 1.5
+  }
+}

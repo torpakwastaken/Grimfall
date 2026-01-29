@@ -15,7 +15,7 @@ export class XPGem extends Phaser.Physics.Arcade.Sprite implements PooledObject 
     // Create texture first before calling super
     const textureKey = 'gem';
     if (!scene.textures.exists(textureKey)) {
-      const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+      const graphics = scene.add.graphics();
       graphics.fillStyle(0x00ffff);
       graphics.fillCircle(5, 5, 5);
       graphics.generateTexture(textureKey, 10, 10);

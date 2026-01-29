@@ -1,0 +1,281 @@
+{
+  "synergies": {
+    "fire_lightning_storm": {
+      "id": "fire_lightning_storm",
+      "name": "Elemental Storm",
+      "description": "Fire + Lightning = Overloaded enemies explode in chain reactions",
+      "trigger": {
+        "type": "both_hit_same_target",
+        "window": 2000,
+        "requiredTags": {
+          "player1": ["burn"],
+          "player2": ["shock"]
+        }
+      },
+      "effect": {
+        "type": "chain_explosion",
+        "baseDamage": 50,
+        "chainRange": 120,
+        "maxChains": 5,
+        "damageDecay": 0.8
+      },
+      "visualEffect": "elemental_storm",
+      "soundEffect": "combo_explosion"
+    },
+    
+    "freeze_shatter_combo": {
+      "id": "freeze_shatter_combo",
+      "name": "Glacial Shatter",
+      "description": "Heavy hits shatter frozen enemies for massive AoE",
+      "trigger": {
+        "type": "hit_status",
+        "targetStatus": "frozen",
+        "damageThreshold": 30,
+        "requiredTags": {
+          "attacker": ["single_target", "crit"]
+        }
+      },
+      "effect": {
+        "type": "explosion",
+        "damageMultiplier": 3.0,
+        "radius": 150,
+        "appliesStatus": "chilled",
+        "statusDuration": 3000
+      },
+      "visualEffect": "ice_shatter",
+      "soundEffect": "glass_break"
+    },
+    
+    "poison_fire_explosion": {
+      "id": "poison_fire_explosion",
+      "name": "Toxic Combustion",
+      "description": "Fire ignites poison clouds for instant damage",
+      "trigger": {
+        "type": "status_interaction",
+        "status1": "poisoned",
+        "status2": "burning"
+      },
+      "effect": {
+        "type": "instant_dot_damage",
+        "dotMultiplier": 5.0,
+        "bonusFlat": 30,
+        "consumeStacks": true
+      },
+      "visualEffect": "toxic_explosion",
+      "soundEffect": "chemical_burst"
+    },
+    
+    "mark_detonate": {
+      "id": "mark_detonate",
+      "name": "Marked for Death",
+      "description": "Marked enemies explode when killed",
+      "trigger": {
+        "type": "kill_with_status",
+        "targetStatus": "marked"
+      },
+      "effect": {
+        "type": "explosion",
+        "damageMultiplier": 1.5,
+        "radius": 100,
+        "spreadsMark": true,
+        "markDuration": 3000
+      },
+      "visualEffect": "mark_explosion",
+      "soundEffect": "target_destroyed"
+    },
+    
+    "lifesteal_proximity": {
+      "id": "lifesteal_proximity",
+      "name": "Blood Bond",
+      "description": "Lifesteal is shared between nearby players",
+      "trigger": {
+        "type": "passive_proximity",
+        "range": 200,
+        "requiredTags": {
+          "either": ["lifesteal"]
+        }
+      },
+      "effect": {
+        "type": "shared_healing",
+        "sharePercent": 0.5
+      },
+      "visualEffect": "blood_tether",
+      "soundEffect": null
+    },
+    
+    "aoe_chain_reaction": {
+      "id": "aoe_chain_reaction",
+      "name": "Cascade",
+      "description": "AoE effects from one player trigger bonus AoE from the other",
+      "trigger": {
+        "type": "effect_echo",
+        "triggerType": "aoe_damage",
+        "minTargetsHit": 3
+      },
+      "effect": {
+        "type": "partner_aoe_trigger",
+        "damagePercent": 0.3,
+        "delayMs": 200
+      },
+      "visualEffect": "cascade_wave",
+      "soundEffect": "echo_boom"
+    },
+    
+    "prime_detonate": {
+      "id": "prime_detonate",
+      "name": "Prime & Detonate",
+      "description": "Primed targets detonate for massive damage when hit by detonator",
+      "trigger": {
+        "type": "tag_combo",
+        "primerTags": ["prime", "mark", "weaken"],
+        "detonatorTags": ["detonate", "crit", "explosive"]
+      },
+      "effect": {
+        "type": "combo_explosion",
+        "baseDamageMultiplier": 2.0,
+        "bonusPerPrimeStack": 0.5,
+        "maxStacks": 5,
+        "radius": 120
+      },
+      "visualEffect": "combo_detonate",
+      "soundEffect": "massive_explosion"
+    },
+    
+    "weaken_execute": {
+      "id": "weaken_execute",
+      "name": "Predator & Prey",
+      "description": "Weakened enemies have lower execute threshold",
+      "trigger": {
+        "type": "status_passive",
+        "targetStatus": "weakened"
+      },
+      "effect": {
+        "type": "modify_execute_threshold",
+        "baseThreshold": 0.2,
+        "bonusPerWeakenStack": 0.05,
+        "maxThreshold": 0.4
+      },
+      "visualEffect": "prey_mark",
+      "soundEffect": null
+    },
+    
+    "knockback_combo": {
+      "id": "knockback_combo",
+      "name": "Pinball",
+      "description": "Enemies knocked into each other take bonus damage",
+      "trigger": {
+        "type": "physics_collision",
+        "collisionType": "enemy_enemy",
+        "minSpeed": 200
+      },
+      "effect": {
+        "type": "collision_damage",
+        "baseDamage": 20,
+        "speedMultiplier": 0.2,
+        "stunDuration": 500
+      },
+      "visualEffect": "impact_stars",
+      "soundEffect": "bonk"
+    },
+    
+    "zone_overlap": {
+      "id": "zone_overlap",
+      "name": "Convergence",
+      "description": "Overlapping AoE zones deal 100% bonus damage",
+      "trigger": {
+        "type": "zone_overlap",
+        "minOverlapPercent": 0.3,
+        "ownersRequired": 2
+      },
+      "effect": {
+        "type": "zone_amplify",
+        "damageMultiplier": 2.0,
+        "effectsStack": true
+      },
+      "visualEffect": "zone_merge",
+      "soundEffect": "power_surge"
+    }
+  },
+  
+  "passiveSynergies": {
+    "elemental_diversity": {
+      "id": "elemental_diversity",
+      "name": "Elemental Mastery",
+      "description": "Using different damage types grants stacking bonus",
+      "condition": {
+        "type": "different_damage_types",
+        "players": "both",
+        "minTypes": 2
+      },
+      "bonus": {
+        "type": "global_damage",
+        "perUniqueType": 0.1,
+        "maxBonus": 0.4
+      }
+    },
+    
+    "role_complement": {
+      "id": "role_complement",
+      "name": "Perfect Partners",
+      "description": "Complementary weapon types grant mutual buffs",
+      "condition": {
+        "type": "tag_complement",
+        "tagPairs": [
+          ["melee", "ranged"],
+          ["single_target", "aoe"],
+          ["dot", "burst"],
+          ["prime", "detonate"]
+        ]
+      },
+      "bonus": {
+        "type": "stat_buff_both",
+        "stat": "damage",
+        "value": 0.15
+      }
+    },
+    
+    "proximity_synergy": {
+      "id": "proximity_synergy",
+      "name": "Battle Brothers",
+      "description": "Being close grants mutual defensive bonuses",
+      "condition": {
+        "type": "proximity",
+        "range": 150
+      },
+      "bonus": {
+        "type": "stat_buff_both",
+        "stat": "damageReduction",
+        "value": 0.15
+      }
+    },
+    
+    "separation_synergy": {
+      "id": "separation_synergy",
+      "name": "Flanking Maneuver",
+      "description": "Being far apart grants mutual offensive bonuses",
+      "condition": {
+        "type": "separation",
+        "minRange": 400
+      },
+      "bonus": {
+        "type": "stat_buff_both",
+        "stat": "critChance",
+        "value": 0.2
+      }
+    }
+  },
+  
+  "synergyUI": {
+    "comboPopup": {
+      "duration": 1500,
+      "fontSize": 24,
+      "color": "#ffcc00",
+      "floatHeight": 50
+    },
+    "synergyIndicator": {
+      "showWhenAvailable": true,
+      "pulseWhenReady": true,
+      "tintColor": "0xffcc00"
+    }
+  }
+}

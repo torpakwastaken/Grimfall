@@ -3,6 +3,33 @@ import { Health } from '@/components/Health';
 import { Weapon } from '@/components/Weapon';
 import { BuffContainer } from '@/components/BuffContainer';
 import { PlayerConfig, PlayerStats, WeaponConfig } from '@/types/GameTypes';
+import { createPlayerSprite, PALETTE } from '@/systems/AnimationSystem';
+import balanceConfig from '@/data/balance.json';
+
+// Precomputed soft cap lookup tables (0-200% in 1% increments)
+// Avoids expensive Math.exp() calls every frame
+const SOFT_CAP_TABLES: Map<string, number[]> = new Map();
+
+function buildSoftCapTable(softCap: number, hardCap: number): number[] {
+  const table: number[] = [];
+  for (let i = 0; i <= 200; i++) {
+    const raw = i / 100; // 0.00 to 2.00
+    const effective = softCap * (1 - Math.exp(-raw / softCap));
+    table.push(Math.min(effective, hardCap));
+  }
+  return table;
+}
+
+// Build tables once at module load
+function initSoftCapTables() {
+  const caps = balanceConfig.statCaps.softCaps;
+  SOFT_CAP_TABLES.set('fireRate', buildSoftCapTable(caps.fireRate.cap, caps.fireRate.hardCap));
+  SOFT_CAP_TABLES.set('moveSpeed', buildSoftCapTable(caps.moveSpeed.cap, caps.moveSpeed.hardCap));
+  SOFT_CAP_TABLES.set('damageReduction', buildSoftCapTable(caps.damageReduction.cap, caps.damageReduction.hardCap));
+  SOFT_CAP_TABLES.set('critChance', buildSoftCapTable(caps.critChance.cap, caps.critChance.hardCap));
+  SOFT_CAP_TABLES.set('lifeSteal', buildSoftCapTable(caps.lifeSteal.cap, caps.lifeSteal.hardCap));
+}
+initSoftCapTables();
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   public playerId: number;
@@ -12,11 +39,16 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   public buffs: BuffContainer;
   public stats: PlayerStats;
   
+  // Raw stats before caps (for upgrade stacking)
+  private rawStats: Partial<PlayerStats> = {};
+  // Base stats at game start (for soft cap calculations)
+  private baseStats!: PlayerStats;
+  
   private directionIndicator: Phaser.GameObjects.Triangle;
   private hpBar: Phaser.GameObjects.Graphics;
   private keys: Map<string, Phaser.Input.Keyboard.Key>;
   
-  private isDead: boolean = false;
+  public isDead: boolean = false;
   private reviveTime: number = 0;
   private invulnerable: boolean = false;
   private invulnerableUntil: number = 0;
@@ -31,13 +63,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     config: PlayerConfig,
     weaponConfig: WeaponConfig
   ) {
-    // Create visual representation as a circle texture first
-    const graphics = scene.add.graphics();
-    graphics.fillStyle(config.color);
-    graphics.fillCircle(15, 15, 15);
-    const textureKey = 'player_' + config.id;
-    graphics.generateTexture(textureKey, 30, 30);
-    graphics.destroy();
+    // Create visual representation using palette-based sprite with outline
+    const textureKey = createPlayerSprite(scene, config.id, 32);
 
     // Now create the sprite with the texture
     super(scene, config.startX, config.startY, textureKey);
@@ -57,6 +84,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       ammo: 5,
       maxAmmo: 5
     };
+    
+    // Store base stats for soft cap calculations
+    this.baseStats = { ...this.stats };
 
     // Direction indicator (wedge shape)
     this.directionIndicator = scene.add.triangle(
@@ -91,17 +121,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.keys.set(action, scene.input.keyboard!.addKey(key));
     });
 
-    // Physics
-    if (this.body) {
-      this.body.setCircle(15);
-      this.body.setCollideWorldBounds(true);
-      this.body.setBounce(0.2, 0.2);
-    } else {
-      // Ensure physics body exists
-      scene.physics.add.existing(this);
-      (this.body as Phaser.Physics.Arcade.Body).setCircle(15);
-      (this.body as Phaser.Physics.Arcade.Body).setCollideWorldBounds(true);
-      (this.body as Phaser.Physics.Arcade.Body).setBounce(0.2, 0.2);
+    // Physics - ensure body exists
+    scene.physics.add.existing(this);
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    if (body) {
+      body.setCircle(15);
+      body.setCollideWorldBounds(true);
+      body.setBounce(0.2, 0.2);
     }
   }
 
@@ -302,23 +328,63 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  // Apply soft cap using precomputed lookup table (O(1) instead of Math.exp)
+  private applySoftCapFromTable(stat: string, raw: number): number {
+    const table = SOFT_CAP_TABLES.get(stat);
+    if (!table) return raw; // Fallback if no table
+    
+    // Clamp to table range (0-200%)
+    const index = Math.min(Math.max(Math.round(raw * 100), 0), 200);
+    return table[index];
+  }
+
   private applyStatUpgrade(effect: any): void {
+    const softCaps = balanceConfig.statCaps.softCaps;
+    const hardCaps = balanceConfig.statCaps.hardCaps;
+
     if (effect.stat === 'maxHp') {
+      // Max HP has no soft cap, just add directly
       this.stats.maxHp += effect.value;
       this.health.setMax(this.stats.maxHp);
       this.health.heal(effect.value); // Heal when max HP increases
     } else if (effect.stat === 'moveSpeed') {
-      this.stats.moveSpeed *= (1 + effect.value);
+      // Track raw bonus and apply soft cap via lookup
+      this.rawStats.moveSpeed = (this.rawStats.moveSpeed || 0) + effect.value;
+      const cappedMoveSpeed = this.applySoftCapFromTable('moveSpeed', this.rawStats.moveSpeed || 0);
+      // Apply as multiplier from base (assuming base is 1.0 multiplier)
+      this.stats.moveSpeed = this.baseStats.moveSpeed * (1 + cappedMoveSpeed);
     } else if (effect.stat === 'fireRate') {
-      this.stats.fireRate *= (1 + effect.value);
+      // Track raw bonus and apply soft cap via lookup
+      this.rawStats.fireRate = (this.rawStats.fireRate || 0) + effect.value;
+      const cappedFireRate = this.applySoftCapFromTable('fireRate', this.rawStats.fireRate || 0);
+      // Apply as multiplier from base
+      this.stats.fireRate = this.baseStats.fireRate * (1 + cappedFireRate);
     } else if (effect.stat === 'damageReduction') {
-      this.stats.damageReduction += effect.value;
+      // Track raw value and apply soft cap via lookup
+      this.rawStats.damageReduction = (this.rawStats.damageReduction || 0) + effect.value;
+      this.stats.damageReduction = this.applySoftCapFromTable('damageReduction', this.rawStats.damageReduction || 0);
+    } else if (effect.stat === 'critChance') {
+      this.rawStats.critChance = (this.rawStats.critChance || 0) + effect.value;
+      this.stats.critChance = this.applySoftCapFromTable('critChance', this.rawStats.critChance || 0);
+    } else if (effect.stat === 'lifeSteal') {
+      this.rawStats.lifeSteal = (this.rawStats.lifeSteal || 0) + effect.value;
+      this.stats.lifeSteal = this.applySoftCapFromTable('lifeSteal', this.rawStats.lifeSteal || 0);
+    } else if (effect.stat === 'projectileCount') {
+      // Hard cap only
+      this.stats.projectileCount = Math.min(
+        (this.stats.projectileCount || 1) + effect.value,
+        hardCaps.projectileCount
+      );
+    } else if (effect.stat === 'pierce') {
+      this.stats.pierce = Math.min(
+        (this.stats.pierce || 0) + effect.value,
+        hardCaps.pierce
+      );
     }
 
     if (effect.secondaryStat && effect.secondaryValue) {
-      if (effect.secondaryStat === 'damageReduction') {
-        this.stats.damageReduction += effect.secondaryValue;
-      }
+      // Recursively apply secondary stat with same capping logic
+      this.applyStatUpgrade({ stat: effect.secondaryStat, value: effect.secondaryValue });
     }
   }
 

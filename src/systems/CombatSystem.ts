@@ -61,10 +61,15 @@ export class CombatSystem {
 
     // Get the player who fired this
     const player = this.getPlayerById(projectile.ownerId);
-    if (!player) return;
+    if (!player) {
+      console.warn(`[CombatSystem] No player found for ownerId: ${projectile.ownerId}`);
+      return;
+    }
 
     let damage = projectile.damage;
     let isCrit = false;
+    const isBreaker = player.playerId === 0;
+    const isAmplifier = player.playerId === 1;
 
     // Check for crit
     if (Math.random() < player.stats.critChance) {
@@ -72,25 +77,38 @@ export class CombatSystem {
       isCrit = true;
     }
 
-    // Apply mark if player has marker rounds
-    if (player.hasMarkerRounds) {
+    // === ROLE-BASED EFFECTS ===
+    
+    // BREAKER (P1): Apply BROKEN state + knockback
+    if (isBreaker) {
+      // 40% chance to break on hit (or always on crit)
+      if (isCrit || Math.random() < 0.4) {
+        enemy.applyBroken(2000);
+      }
+      // Always apply knockback
+      enemy.applyKnockback(player.x, player.y, 120);
+    }
+    
+    // AMPLIFIER (P2): Apply MARKED state
+    if (isAmplifier) {
       enemy.mark(3000);
     }
 
-    // Check for synergy: marked + detonate
-    const synergyActive = this.checkMarkDetonateSynergy(player, enemy);
-    
-    // Apply damage
+    // Apply damage (includes role synergy multipliers inside enemy.takeDamage)
     const actualDamage = enemy.takeDamage(damage, player);
 
-    // Create explosion on crit if player has detonate
+    // Emit damage dealt event for debug overlay
+    this.scene.events.emit('damageDealt', { playerId: player.playerId, amount: actualDamage });
+    
+    // Emit hit event for VFX system (flash + damage number)
+    this.scene.events.emit('enemyHit', { sprite: enemy, damage: actualDamage, isCrit });
+
+    // Create explosion on crit if player has detonate (legacy support)
     if (isCrit && player.hasDetonateShot) {
-      const explosionDamage = synergyActive ? 150 : 50; // 3x damage if synergy active
+      const synergyActive = this.checkMarkDetonateSynergy(player, enemy);
+      const explosionDamage = synergyActive ? 150 : 50;
       this.createExplosion(projectile.x, projectile.y, 80, explosionDamage, player);
     }
-
-    // Damage number
-    this.showDamageNumber(enemy.x, enemy.y, actualDamage, isCrit);
 
     // Handle projectile pierce
     projectile.onHit();
@@ -108,6 +126,14 @@ export class CombatSystem {
     if (projectile.ownerId !== -1) return; // Only enemy projectiles
 
     player.takeDamage(projectile.damage);
+    
+    // Emit player damaged event for debug overlay
+    this.scene.events.emit('playerDamaged', { 
+      playerId: player.playerId, 
+      amount: projectile.damage, 
+      source: 'projectile' 
+    });
+    
     projectile.deactivate();
   }
 
@@ -115,6 +141,10 @@ export class CombatSystem {
     if (!player.active || player.isDead || !gem.active) return;
 
     player.addXP(gem.xpValue);
+    
+    // Emit XP collected event for debug overlay
+    this.scene.events.emit('xpCollected', { playerId: player.playerId, amount: gem.xpValue });
+    
     gem.collect();
   }
 

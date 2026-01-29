@@ -1,0 +1,149 @@
+{
+  "phases": [
+    {
+      "id": "onboarding",
+      "name": "Learn Your Role",
+      "startTime": 0,
+      "endTime": 30,
+      "description": "Discover your abilities",
+      "spawnBudget": 3,
+      "spawnInterval": 1500,
+      "enemies": [
+        { "type": "swarmer", "weight": 1, "hpMultiplier": 0.4, "aggroSplit": false }
+      ],
+      "destructibles": 0,
+      "hints": ["breaker_role", "amplifier_role", "synergy_hint"],
+      "bossSpawn": false
+    },
+    {
+      "id": "role_discovery",
+      "name": "Break → Detonate",
+      "startTime": 30,
+      "endTime": 60,
+      "description": "Learn the combo",
+      "spawnBudget": 5,
+      "spawnInterval": 1200,
+      "enemies": [
+        { "type": "swarmer", "weight": 2, "hpMultiplier": 0.5, "aggroSplit": true },
+        { "type": "shambler", "weight": 1, "hpMultiplier": 0.6, "aggroSplit": true }
+      ],
+      "destructibles": 2,
+      "hints": [],
+      "bossSpawn": false
+    },
+    {
+      "id": "pressure_ramp",
+      "name": "Rising Tide",
+      "startTime": 60,
+      "endTime": 100,
+      "description": "Screen fills up",
+      "spawnBudget": 8,
+      "spawnInterval": 800,
+      "enemies": [
+        { "type": "swarmer", "weight": 3, "hpMultiplier": 0.5, "aggroSplit": true },
+        { "type": "shambler", "weight": 2, "hpMultiplier": 0.7, "aggroSplit": true }
+      ],
+      "destructibles": 1,
+      "hints": [],
+      "bossSpawn": false,
+      "coopObjective": {
+        "type": "dual_zone",
+        "startTime": 80,
+        "duration": 15000,
+        "hint": "Stand in BOTH zones!"
+      }
+    },
+    {
+      "id": "synergy_test",
+      "name": "Synergy Required",
+      "startTime": 100,
+      "endTime": 135,
+      "description": "Solo = death",
+      "spawnBudget": 10,
+      "spawnInterval": 600,
+      "enemies": [
+        { "type": "swarmer", "weight": 4, "hpMultiplier": 0.4, "aggroSplit": true },
+        { "type": "shambler", "weight": 2, "hpMultiplier": 0.6, "aggroSplit": true },
+        { "type": "shieldbearer", "weight": 1, "hpMultiplier": 0.8, "aggroSplit": true }
+      ],
+      "destructibles": 0,
+      "hints": [],
+      "bossSpawn": false
+    },
+    {
+      "id": "miniboss",
+      "name": "GUARDIAN",
+      "startTime": 135,
+      "endTime": 170,
+      "description": "Break + Detonate loop",
+      "spawnBudget": 4,
+      "spawnInterval": 2000,
+      "enemies": [
+        { "type": "swarmer", "weight": 1, "hpMultiplier": 0.3, "aggroSplit": true }
+      ],
+      "destructibles": 0,
+      "hints": [],
+      "bossSpawn": true,
+      "boss": {
+        "type": "elite_guardian",
+        "hp": 400,
+        "damage": 20,
+        "speed": 60,
+        "shieldPhases": 2,
+        "requiresSynergy": true
+      }
+    },
+    {
+      "id": "finale",
+      "name": "VICTORY",
+      "startTime": 170,
+      "endTime": 180,
+      "description": "Demo complete",
+      "spawnBudget": 0,
+      "spawnInterval": 9999,
+      "enemies": [],
+      "destructibles": 0,
+      "hints": [],
+      "bossSpawn": false,
+      "showStats": true
+    }
+  ],
+  "hints": {
+    "breaker_role": {
+      "icon": "🟥",
+      "text": "RED breaks enemies (orange glow)",
+      "duration": 4000,
+      "delay": 0
+    },
+    "amplifier_role": {
+      "icon": "🟦",
+      "text": "BLUE detonates broken enemies",
+      "duration": 4000,
+      "delay": 4500
+    },
+    "synergy_hint": {
+      "icon": "💥",
+      "text": "BREAK → DETONATE = big damage!",
+      "duration": 4000,
+      "delay": 9000
+    }
+  },
+  "arena": {
+    "width": 1200,
+    "height": 800,
+    "centerX": 600,
+    "centerY": 400
+  },
+  "spawnConfig": {
+    "maxEnemies": 60,
+    "edgeBuffer": 50,
+    "aggroSplitChance": 0.5
+  },
+  "statsToTrack": [
+    "totalKills",
+    "synergyKills",
+    "breakCount",
+    "detonateCount",
+    "objectivesCompleted"
+  ]
+}

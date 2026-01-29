@@ -8,6 +8,12 @@ import { CombatSystem } from '@/systems/CombatSystem';
 import { SpawnSystem } from '@/systems/SpawnSystem';
 import { UpgradeSystem } from '@/systems/UpgradeSystem';
 import { ReviveSystem } from '@/systems/ReviveSystem';
+import { DebugOverlay } from '@/systems/DebugOverlay';
+import { VFXSystem, RenderLayer } from '@/systems/VFXSystem';
+import { registerShaderPipelines } from '@/systems/ShaderPipelines';
+import { AnimationSystem, createPlayerSprite, createEnemySprite, PALETTE } from '@/systems/AnimationSystem';
+import { CoopVFXSystem } from '@/systems/CoopVFXSystem';
+import { initPerformanceManager, getPerformanceManager } from '@/systems/PerformanceConfig';
 import { WeaponConfig } from '@/types/GameTypes';
 
 export class GameScene extends Phaser.Scene {
@@ -22,6 +28,10 @@ export class GameScene extends Phaser.Scene {
   public spawnSystem!: SpawnSystem;
   public upgradeSystem!: UpgradeSystem;
   private reviveSystem!: ReviveSystem;
+  private debugOverlay!: DebugOverlay;
+  public vfxSystem!: VFXSystem;
+  public animationSystem!: AnimationSystem;
+  public coopVFXSystem!: CoopVFXSystem;
 
   // UI
   private hud!: {
@@ -54,6 +64,16 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     console.log('GameScene created');
 
+    // Initialize performance manager (auto-detects device capabilities)
+    initPerformanceManager();
+    const perfManager = getPerformanceManager();
+    console.log(`[Performance] Starting with profile: ${perfManager.getProfile().name}`);
+
+    // Register custom shader pipelines (WebGL only, respects performance profile)
+    if (perfManager.getProfile().enableShaders) {
+      registerShaderPipelines(this.game);
+    }
+
     // Set world bounds (large wraparound arena)
     const worldSize = 2000;
     this.physics.world.setBounds(0, 0, worldSize, worldSize);
@@ -61,6 +81,15 @@ export class GameScene extends Phaser.Scene {
     // Setup camera
     this.cameras.main.setBounds(0, 0, worldSize, worldSize);
     this.cameras.main.setZoom(1);
+
+    // Initialize VFX system FIRST (creates layer containers)
+    this.vfxSystem = new VFXSystem(this);
+    
+    // Initialize animation system
+    this.animationSystem = new AnimationSystem(this);
+    
+    // Initialize co-op VFX system
+    this.coopVFXSystem = new CoopVFXSystem(this);
 
     // Create entity pools
     this.createPools();
@@ -73,6 +102,14 @@ export class GameScene extends Phaser.Scene {
     this.spawnSystem = new SpawnSystem(this, this.enemies);
     this.upgradeSystem = new UpgradeSystem(this);
     this.reviveSystem = new ReviveSystem(this);
+    this.debugOverlay = new DebugOverlay(this);
+    this.debugOverlay.setPlayers(this.players.getChildren() as Player[]);
+    
+    // Register performance profile change callbacks
+    perfManager.onProfileChange('gameScene', (profile) => {
+      console.log(`[Performance] Profile changed to: ${profile.name}`);
+      this.vfxSystem.setFancyVFX(profile.enableShaders);
+    });
 
     // Setup collisions
     this.combatSystem.setupCollisions(
@@ -96,31 +133,36 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createPools(): void {
+    const perfManager = getPerformanceManager();
+    const profile = perfManager.getProfile();
+    
     // Players pool
     this.players = this.add.group({
       runChildUpdate: true
     });
 
-    // Enemies pool (pre-allocate 500)
+    // Enemies pool (respects performance profile)
     this.enemies = this.add.group({
       classType: Enemy,
-      maxSize: 800,
+      maxSize: profile.maxEnemies,
       runChildUpdate: true
     });
 
-    for (let i = 0; i < 500; i++) {
+    const enemyPoolSize = Math.min(500, profile.maxEnemies);
+    for (let i = 0; i < enemyPoolSize; i++) {
       const enemy = new Enemy(this);
       this.enemies.add(enemy, true);
     }
 
-    // Projectiles pool (pre-allocate 1000)
+    // Projectiles pool (respects performance profile)
     this.projectiles = this.add.group({
       classType: Projectile,
-      maxSize: 1000,
+      maxSize: profile.maxProjectiles,
       runChildUpdate: true
     });
 
-    for (let i = 0; i < 1000; i++) {
+    const projectilePoolSize = Math.min(1000, profile.maxProjectiles);
+    for (let i = 0; i < projectilePoolSize; i++) {
       const projectile = new Projectile(this);
       this.projectiles.add(projectile, true);
     }
@@ -139,12 +181,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createPlayers(): void {
-    // Player 1 - Rapid Fire
+    // Player 1 - Rapid Fire (lowered base fire rate)
     const p1Weapon: WeaponConfig = {
       id: 'rapid_gun',
       type: 'auto',
       damage: 10,
-      fireRate: 5, // 5 shots per second
+      fireRate: 1, // Lowered from 5 to 1 shot/sec
       projectileSpeed: 400,
       projectileSize: 4,
       pierce: 0,
@@ -165,17 +207,17 @@ export class GameScene extends Phaser.Scene {
       }
     }, p1Weapon);
 
-    // Player 2 - Shotgun
+    // Player 2 - Shotgun (lowered base fire rate and pellets)
     const p2Weapon: WeaponConfig = {
       id: 'shotgun',
       type: 'auto',
       damage: 8,
-      fireRate: 2, // 2 shots per second
+      fireRate: 0.5, // Lowered from 2 to 0.5 shot/sec
       projectileSpeed: 350,
       projectileSize: 3,
       pierce: 0,
       spread: 30,
-      pellets: 5,
+      pellets: 3, // Lowered from 5 to 3
       color: 0x0000ff
     };
 
@@ -286,11 +328,42 @@ export class GameScene extends Phaser.Scene {
     this.events.on('createProjectile', this.createProjectile, this);
     this.events.on('dropXP', this.dropXP, this);
     this.events.on('addXP', (amount: number) => this.upgradeSystem.addXP(amount), this);
-    this.events.on('enemyKilled', () => this.spawnSystem.onEnemyKilled(), this);
+    this.events.on('enemyKilled', (data: any) => this.spawnSystem.onEnemyKilled(data), this);
     this.events.on('xpChanged', this.onXPChanged, this);
     this.events.on('levelUp', this.onLevelUp, this);
     this.events.on('showNotification', this.showNotification, this);
     this.events.on('synergyActivated', this.onSynergyActivated, this);
+    
+    // Co-op VFX events
+    this.events.on('syncKill', this.onSyncKill, this);
+    this.events.on('playerSaved', this.onPlayerSaved, this);
+    this.events.on('playerRevived', this.onPlayerRevived, this);
+    this.events.on('sharedBuff', this.onSharedBuff, this);
+
+    // Pause game with ESC key
+    this.input.keyboard?.on('keydown-ESC', () => {
+      this.scene.pause('GameScene');
+      this.scene.launch('OptionsScene');
+    });
+  }
+  
+  // Co-op VFX handlers
+  private onSyncKill(data: { x: number; y: number }): void {
+    this.coopVFXSystem.createSyncExplosion(data.x, data.y);
+    this.coopVFXSystem.showSyncPopup(data.x, data.y - 30);
+  }
+  
+  private onPlayerSaved(data: { x: number; y: number; saverId: number }): void {
+    this.coopVFXSystem.showSavePopup(data.x, data.y - 30);
+  }
+  
+  private onPlayerRevived(data: { x: number; y: number }): void {
+    this.coopVFXSystem.showRevivePopup(data.x, data.y - 30);
+    this.vfxSystem.screenFlash(PALETTE.FX_HEAL, 0.3, 200);
+  }
+  
+  private onSharedBuff(data: { player1: Player; player2: Player; duration: number }): void {
+    this.coopVFXSystem.createSharedBuffRing(data.player1, data.player2, data.duration);
   }
 
   private createProjectile(data: any): void {
@@ -311,9 +384,9 @@ export class GameScene extends Phaser.Scene {
     this.updateXPBar();
   }
 
-  private onLevelUp(level: number): void {
-    this.hud.level.setText(`Level ${level}`);
-    this.showNotification(`LEVEL UP! Level ${level}`);
+  private onLevelUp(data: { level: number }): void {
+    this.hud.level.setText(`Level ${data.level}`);
+    this.showNotification(`LEVEL UP! Level ${data.level}`);
   }
 
   private showNotification(text: string): void {
@@ -359,11 +432,25 @@ export class GameScene extends Phaser.Scene {
   update(time: number, delta: number): void {
     if (this.isPaused) return;
 
+    // Update performance manager with FPS
+    const fps = this.game.loop.actualFps;
+    getPerformanceManager().update(fps, time);
+
     // Update players
     const playerArray = this.players.getChildren() as Player[];
     for (const player of playerArray) {
       if (player.active) {
         player.update(time, delta);
+        
+        // Apply movement squash/stretch animation
+        const body = player.body as Phaser.Physics.Arcade.Body;
+        if (body) {
+          this.animationSystem.applyMovementSquash(
+            player, 
+            body.velocity.x, 
+            body.velocity.y
+          );
+        }
       }
     }
 
@@ -394,6 +481,9 @@ export class GameScene extends Phaser.Scene {
     // Update systems
     this.spawnSystem.update(time, delta);
     this.reviveSystem.update(time);
+    this.debugOverlay.update();
+    this.vfxSystem.update(time, delta);
+    this.coopVFXSystem.update(delta);
 
     // Update HUD
     this.updateHUD();

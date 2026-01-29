@@ -1,0 +1,42 @@
+{
+  "xp": {
+    "baseXP": 50,
+    "scaleFactor": 1.35,
+    "maxLevel": 20
+  },
+  "statCaps": {
+    "softCaps": {
+      "fireRate": { "cap": 5, "hardCap": 10 },
+      "moveSpeed": { "cap": 1.0, "hardCap": 1.5 },
+      "damageReduction": { "cap": 0.5, "hardCap": 0.75 },
+      "critChance": { "cap": 0.5, "hardCap": 0.8 },
+      "lifeSteal": { "cap": 0.15, "hardCap": 0.25 }
+    },
+    "hardCaps": {
+      "projectileCount": 8,
+      "pierce": 10,
+      "aoeRadius": 200,
+      "cooldownReduction": 0.8
+    }
+  },
+  "upgrades": {
+    "tierUnlockLevels": [1, 5, 10, 15],
+    "tierWeights": {
+      "tier1Only": [100, 0, 0, 0],
+      "tier2Unlocked": [70, 30, 0, 0],
+      "tier3Unlocked": [50, 35, 15, 0],
+      "tier4Unlocked": [40, 30, 20, 10]
+    },
+    "choicesPerLevelUp": 3,
+    "synergyWeightBonus": 0.2,
+    "allowDuplicates": false
+  },
+  "comeback": {
+    "desperationThreshold": 0.25,
+    "desperationDamageBonus": 0.2,
+    "desperationSpeedBonus": 0.1,
+    "mercyInvulnCooldown": 60000,
+    "xpBurstMultiplier": 2.0,
+    "xpBurstDuration": 5000
+  }
+}

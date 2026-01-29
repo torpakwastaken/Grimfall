@@ -3,6 +3,28 @@ import { MenuScene } from '@/scenes/MenuScene';
 import { GameScene } from '@/scenes/GameScene';
 import { UpgradeScene } from '@/scenes/UpgradeScene';
 import { GameOverScene } from '@/scenes/GameOverScene';
+import { OptionsScene } from '@/scenes/OptionsScene';
+import { DemoScene } from '@/scenes/DemoScene';
+import { WeaponTestScene } from '@/scenes/WeaponTestScene';
+import { WeaponSelectScene } from '@/scenes/WeaponSelectScene';
+import { LobbyScene } from '@/scenes/LobbyScene';
+
+// Set to true to start directly in demo mode
+// Set to 'test' to start in weapon test scene
+const DEMO_MODE: boolean | 'test' = false as boolean | 'test';
+
+// All scenes used in the game
+const ALL_SCENES = [
+  MenuScene,
+  LobbyScene,
+  WeaponSelectScene, 
+  GameScene, 
+  UpgradeScene, 
+  GameOverScene, 
+  OptionsScene, 
+  DemoScene,
+  WeaponTestScene
+];
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -17,7 +39,11 @@ const config: Phaser.Types.Core.GameConfig = {
       gravity: { x: 0, y: 0 }
     }
   },
-  scene: [MenuScene, GameScene, UpgradeScene, GameOverScene],
+  scene: DEMO_MODE === 'test'
+    ? [WeaponTestScene, ...ALL_SCENES.filter(s => s !== WeaponTestScene)]
+    : DEMO_MODE 
+      ? [DemoScene, ...ALL_SCENES.filter(s => s !== DemoScene)]
+      : ALL_SCENES,
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -28,10 +54,7 @@ const config: Phaser.Types.Core.GameConfig = {
     antialias: true,
     powerPreference: 'high-performance'
   },
-  pause: {
-    onBlur: false,
-    onHide: false
-  }
+  disableContextMenu: true
 };
 
 const game = new Phaser.Game(config);

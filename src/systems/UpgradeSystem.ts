@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { Player } from '@/entities/Player';
 import upgradeDataJson from '@/data/upgrades.json';
 import { UpgradeData } from '@/types/GameTypes';
+import { runtimeConfig } from './RuntimeConfig';
 
 export class UpgradeSystem {
   private scene: Phaser.Scene;
@@ -11,8 +12,19 @@ export class UpgradeSystem {
   private totalXP: number = 0;
   private currentLevel: number = 1;
   private xpThresholds: number[] = [];
-  private baseXPPerLevel: number = 100;
-  private xpScaling: number = 1.5;
+  private baseXPPerLevel: number = 50; // First level-up in ~15 seconds
+  private xpScaling: number = 1.35; // Flatter curve for duo play
+  
+  // Tier unlock levels
+  private tierUnlockLevels: number[] = [1, 5, 10, 15];
+  
+  // Tier rarity weights based on current unlock state
+  private tierWeights: number[][] = [
+    [100, 0, 0, 0],     // Only tier 1
+    [70, 30, 0, 0],     // Tier 1-2 unlocked
+    [50, 35, 15, 0],    // Tier 1-3 unlocked
+    [40, 30, 20, 10]    // All tiers unlocked
+  ];
   
   // Track player upgrades
   private playerUpgrades: Map<number, Set<string>> = new Map();
@@ -37,13 +49,23 @@ export class UpgradeSystem {
     this.xpThresholds = [0]; // Level 1 starts at 0 XP
     
     for (let i = 1; i <= maxLevel; i++) {
-      const xpNeeded = Math.floor(this.baseXPPerLevel * Math.pow(this.xpScaling, i - 1));
+      let xpNeeded = Math.floor(this.baseXPPerLevel * Math.pow(this.xpScaling, i - 1));
+      
+      // Late-game XP discount to prevent stagnation (levels 15+)
+      if (i >= 15) {
+        xpNeeded = Math.floor(xpNeeded * 0.9);
+      }
+      
       this.xpThresholds.push(this.xpThresholds[i - 1] + xpNeeded);
     }
   }
 
   addXP(amount: number): void {
-    this.totalXP += amount;
+    // Apply runtime XP multiplier
+    const rtXpMult = runtimeConfig.get('xpGainMultiplier');
+    const actualAmount = Math.floor(amount * rtXpMult);
+    
+    this.totalXP += actualAmount;
     
     // Check for level up
     if (this.currentLevel < this.xpThresholds.length - 1) {
@@ -66,27 +88,86 @@ export class UpgradeSystem {
       upgradeChoices: this.generateUpgradeChoices()
     });
     
-    this.scene.events.emit('levelUp', this.currentLevel);
+    // Emit for both GameScene HUD and debug overlay
+    this.scene.events.emit('levelUp', { level: this.currentLevel });
   }
 
   private generateUpgradeChoices(): Array<{ playerId: number; upgrades: UpgradeData[] }> {
     const choices: Array<{ playerId: number; upgrades: UpgradeData[] }> = [];
     
+    // Determine which tiers are unlocked
+    const unlockedTierIndex = this.getUnlockedTierIndex();
+    const weights = this.tierWeights[unlockedTierIndex];
+    
     // Generate 3 random upgrades for each player
     for (let playerId = 0; playerId < 2; playerId++) {
       const playerUpgradeSet = this.playerUpgrades.get(playerId)!;
-      const availableUpgrades: UpgradeData[] = [];
+      const partnerUpgradeSet = this.playerUpgrades.get(playerId === 0 ? 1 : 0)!;
       
-      // Get all upgrades player doesn't have yet
+      // Group available upgrades by tier
+      const upgradesByTier: UpgradeData[][] = [[], [], [], []];
+      
       for (const [id, upgrade] of this.upgradeData) {
         if (!playerUpgradeSet.has(id)) {
-          availableUpgrades.push(upgrade);
+          const tierIndex = Math.min(upgrade.tier - 1, 3);
+          if (tierIndex <= unlockedTierIndex) {
+            upgradesByTier[tierIndex].push(upgrade);
+          }
         }
       }
       
-      // Shuffle and take 3
-      Phaser.Utils.Array.Shuffle(availableUpgrades);
-      const selected = availableUpgrades.slice(0, 3);
+      // Select 3 upgrades using weighted random selection
+      const selected: UpgradeData[] = [];
+      const maxAttempts = 50;
+      let attempts = 0;
+      
+      while (selected.length < 3 && attempts < maxAttempts) {
+        attempts++;
+        
+        // Pick a tier based on weights
+        const tierIndex = this.weightedRandomTier(weights);
+        const tierUpgrades = upgradesByTier[tierIndex];
+        
+        if (tierUpgrades.length === 0) continue;
+        
+        // Apply synergy bonus: +20% weight for upgrades that synergize with partner
+        const weightedUpgrades = tierUpgrades.map(u => {
+          let weight = 1;
+          if (u.synergyWith && partnerUpgradeSet.has(u.synergyWith)) {
+            weight = 1.2; // 20% bonus for synergy potential
+          }
+          return { upgrade: u, weight };
+        });
+        
+        // Weighted random selection from tier
+        const totalWeight = weightedUpgrades.reduce((sum, u) => sum + u.weight, 0);
+        let random = Math.random() * totalWeight;
+        let chosen: UpgradeData | null = null;
+        
+        for (const { upgrade, weight } of weightedUpgrades) {
+          random -= weight;
+          if (random <= 0) {
+            chosen = upgrade;
+            break;
+          }
+        }
+        
+        if (chosen && !selected.some(s => s.id === chosen!.id)) {
+          selected.push(chosen);
+          // Remove from tier pool
+          const idx = tierUpgrades.findIndex(u => u.id === chosen!.id);
+          if (idx !== -1) tierUpgrades.splice(idx, 1);
+        }
+      }
+      
+      // Fallback: if we couldn't get 3, just grab any available
+      if (selected.length < 3) {
+        const allAvailable = upgradesByTier.flat().filter(u => !selected.some(s => s.id === u.id));
+        Phaser.Utils.Array.Shuffle(allAvailable);
+        while (selected.length < 3 && allAvailable.length > 0) {
+          selected.push(allAvailable.pop()!);
+        }
+      }
       
       choices.push({
         playerId: playerId,
@@ -95,6 +176,26 @@ export class UpgradeSystem {
     }
     
     return choices;
+  }
+  
+  private getUnlockedTierIndex(): number {
+    for (let i = this.tierUnlockLevels.length - 1; i >= 0; i--) {
+      if (this.currentLevel >= this.tierUnlockLevels[i]) {
+        return i;
+      }
+    }
+    return 0;
+  }
+  
+  private weightedRandomTier(weights: number[]): number {
+    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+    let random = Math.random() * totalWeight;
+    
+    for (let i = 0; i < weights.length; i++) {
+      random -= weights[i];
+      if (random <= 0) return i;
+    }
+    return 0;
   }
 
   applyUpgrade(playerId: number, upgradeId: string): void {
@@ -119,7 +220,8 @@ export class UpgradeSystem {
       this.checkSynergies(playerId, upgradeId);
     }
     
-    this.scene.events.emit('upgradeApplied', playerId, upgradeId);
+    // Emit for debug overlay (object format)
+    this.scene.events.emit('upgradeApplied', { playerId, upgradeId });
   }
 
   private checkSynergies(playerId: number, upgradeId: string): void {

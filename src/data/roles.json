@@ -1,0 +1,102 @@
+{
+  "breaker": {
+    "id": "breaker",
+    "name": "Breaker",
+    "fantasy": "Space Marine frontline enforcer",
+    "color": "P1_PRIMARY",
+    "primaryWeapon": {
+      "id": "shockwave_cannon",
+      "type": "auto",
+      "damage": 8,
+      "fireRate": 2.5,
+      "projectileSpeed": 300,
+      "projectileSize": 12,
+      "pierce": 3,
+      "knockback": 150,
+      "breakChance": 0.4,
+      "breakDuration": 2000
+    },
+    "ability": {
+      "id": "ground_slam",
+      "cooldown": 5000,
+      "radius": 120,
+      "knockback": 300,
+      "breakDuration": 3000,
+      "damage": 5
+    },
+    "passives": [
+      "enemies_hit_become_vulnerable",
+      "knockback_on_all_hits"
+    ]
+  },
+  "amplifier": {
+    "id": "amplifier", 
+    "name": "Amplifier",
+    "fantasy": "Heavy gunner / tech specialist",
+    "color": "P2_PRIMARY",
+    "primaryWeapon": {
+      "id": "precision_cannon",
+      "type": "auto",
+      "damage": 6,
+      "fireRate": 4,
+      "projectileSpeed": 500,
+      "projectileSize": 4,
+      "pierce": 0,
+      "markOnHit": true,
+      "markDuration": 3000,
+      "detonateMarked": true,
+      "detonateDamage": 25,
+      "chainToMarked": 2
+    },
+    "ability": {
+      "id": "overcharge_burst",
+      "cooldown": 6000,
+      "damage": 15,
+      "bonusVsBroken": 3.0,
+      "radius": 80
+    },
+    "passives": [
+      "bonus_damage_to_broken",
+      "chain_damage_to_marked"
+    ]
+  },
+  "synergies": {
+    "break_detonate": {
+      "trigger": "amplifier_hits_broken_enemy",
+      "effect": "explosion",
+      "explosionRadius": 60,
+      "explosionDamage": 40,
+      "visualFX": "sync_explosion",
+      "screenShake": 0.015,
+      "slowMo": 0.3,
+      "slowMoDuration": 100
+    },
+    "marked_shatter": {
+      "trigger": "breaker_hits_marked_enemy", 
+      "effect": "instant_break",
+      "bonusDamage": 1.5,
+      "spreadMark": true,
+      "spreadRadius": 80
+    }
+  },
+  "enemyStates": {
+    "normal": {
+      "damageMultiplier": 1.0,
+      "color": null
+    },
+    "broken": {
+      "damageMultiplier": 1.0,
+      "amplifierDamageMultiplier": 2.5,
+      "duration": 2000,
+      "color": "0xffaa00",
+      "pulseEffect": true
+    },
+    "marked": {
+      "damageMultiplier": 1.0,
+      "breakerDamageMultiplier": 1.5,
+      "duration": 3000,
+      "color": "0x00ffff",
+      "chainable": true
+    }
+  }
+}

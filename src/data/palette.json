@@ -1,0 +1,75 @@
+{
+  "meta": {
+    "name": "Grimfall Palette",
+    "description": "High-contrast, 12-color limited palette for clarity in chaos",
+    "style": "chunky shapes, silhouette-first design"
+  },
+  
+  "palette": {
+    "background": {
+      "dark": "0x0a0a0f",
+      "mid": "0x1a1a2e",
+      "light": "0x2a2a4e"
+    },
+    
+    "players": {
+      "p1_primary": "0xff4444",
+      "p1_secondary": "0xff8888",
+      "p1_outline": "0xaa0000",
+      
+      "p2_primary": "0x4488ff",
+      "p2_secondary": "0x88bbff",
+      "p2_outline": "0x0044aa"
+    },
+    
+    "enemies": {
+      "swarmer": "0xff6644",
+      "shambler": "0x886644",
+      "shieldbearer": "0x4466aa",
+      "sniper": "0xaa44aa",
+      "elite_tint": "0xff00ff",
+      "boss": "0xffaa00"
+    },
+    
+    "projectiles": {
+      "damage": "0xffff44",
+      "support": "0x44ff88",
+      "explosive": "0xff8800",
+      "enemy": "0xff4488"
+    },
+    
+    "effects": {
+      "heal": "0x44ff44",
+      "buff": "0x44ffff",
+      "crit": "0xffff00",
+      "sync": "0xffffff",
+      "xp": "0x88ff88"
+    },
+    
+    "ui": {
+      "health_high": "0x44ff44",
+      "health_mid": "0xffff44",
+      "health_low": "0xff4444",
+      "xp_bar": "0x44ff88",
+      "text_primary": "0xffffff",
+      "text_secondary": "0xaaaaaa"
+    }
+  },
+  
+  "rules": {
+    "enemy_silhouette": "Shape defines type, not detail",
+    "player_distinction": "Hue + 2px outline = always readable",
+    "projectile_color": "Color = function (damage=yellow, support=green, explode=orange)",
+    "never_use": ["pure white backgrounds", "gradients on small sprites", "more than 3 colors per entity"]
+  },
+  
+  "sprite_sizes": {
+    "player": 32,
+    "enemy_small": 24,
+    "enemy_medium": 32,
+    "enemy_large": 48,
+    "boss": 64,
+    "projectile": 8,
+    "xp_gem": 12
+  }
+}

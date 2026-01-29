@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { Health } from '@/components/Health';
 import { EnemyData } from '@/types/GameTypes';
 import { PooledObject } from '@/types/GameTypes';
+import { createEnemySprite, PALETTE } from '@/systems/AnimationSystem';
 
 export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject {
   public active: boolean = false;
@@ -13,7 +14,12 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
   private target: { x: number; y: number } | null = null;
   private lastAttackTime: number = 0;
   private markedUntil: number = 0;
+  private brokenUntil: number = 0;
   private baseColor: number = 0xffffff;
+  
+  // Aggro system for threat split
+  public aggroTarget: number = -1; // -1 = nearest, 0 = P1, 1 = P2
+  public aggroType: 'nearest' | 'dps' | 'fixed' = 'nearest';
 
   // Shieldbearer specific
   private facingAngle: number = 0;
@@ -27,7 +33,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
     // Create a default texture first
     const textureKey = 'enemy_default';
     if (!scene.textures.exists(textureKey)) {
-      const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+      const graphics = scene.add.graphics();
       graphics.fillStyle(0xffffff);
       graphics.fillCircle(15, 15, 15);
       graphics.generateTexture(textureKey, 30, 30);
@@ -44,22 +50,37 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
     this.setPosition(x, y);
     
     this.enemyData = data;
-    this.baseColor = parseInt(data.color);
     
-    // Create a sprite texture with the enemy shape if not already done
-    const textureKey = `enemy_${data.id}`;
-    if (!this.scene.textures.exists(textureKey)) {
-      const graphics = this.scene.add.graphics();
-      graphics.fillStyle(this.baseColor);
-      graphics.fillCircle(data.size, data.size, data.size);
-      graphics.generateTexture(textureKey, data.size * 2, data.size * 2);
-      graphics.destroy();
-    }
+    // Get palette color based on enemy type
+    const paletteColors: Record<string, number> = {
+      'swarmer': PALETTE.ENEMY_SWARMER,
+      'shambler': PALETTE.ENEMY_SHAMBLER,
+      'shieldbearer': PALETTE.ENEMY_SHIELDBEARER,
+      'sniper': PALETTE.ENEMY_SNIPER
+    };
+    this.baseColor = paletteColors[data.id] || parseInt(data.color);
+    
+    // Create shape-based sprite (silhouette > detail)
+    // Use size from data for proper scaling
+    const spriteSize = Math.max(24, data.size * 2);
+    const textureKey = createEnemySprite(this.scene, data.id, spriteSize);
     this.setTexture(textureKey);
+    
+    // Scale to match actual enemy size
+    const scale = (data.size * 2) / spriteSize;
+    this.setScale(scale);
+    
+    // Apply elite tint if this is an elite enemy
+    if ((data as any).isElite) {
+      this.setTint(PALETTE.ENEMY_ELITE);
+    } else {
+      this.clearTint();
+    }
 
     // Store shape info for later rendering if needed
     if (!this.bodyShape) {
       this.bodyShape = this.scene.add.circle(0, 0, data.size, this.baseColor);
+      this.bodyShape.setVisible(false); // Hide the old circle
       this.hpBar = this.scene.add.graphics();
     } else {
       this.updateBodyShape(data);
@@ -77,10 +98,11 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
     if (!this.body) {
       this.scene.physics.add.existing(this);
     }
-    if (this.body) {
-      this.body.setCircle(data.size);
-      this.body.setCollideWorldBounds(true);
-      this.body.setBounce(0.2, 0.2);
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    if (body) {
+      body.setCircle(data.size);
+      body.setCollideWorldBounds(true);
+      body.setBounce(0.2, 0.2);
     }
 
     this.updateHPBar();
@@ -93,6 +115,9 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
     this.target = null;
     this.lastAttackTime = 0;
     this.markedUntil = 0;
+    this.brokenUntil = 0;
+    this.aggroTarget = -1;
+    this.aggroType = 'nearest';
     this.chargingLaser = false;
     
     // Clear health bar
@@ -151,6 +176,15 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
       return null;
     }
     
+    // AGGRO SPLIT: If this enemy has a fixed target, go for that player
+    if (this.aggroType === 'fixed' && this.aggroTarget >= 0) {
+      const targetPlayer = players.find(p => p.playerId === this.aggroTarget);
+      if (targetPlayer && targetPlayer.active && !targetPlayer.isDead) {
+        return targetPlayer;
+      }
+    }
+    
+    // Default: Find nearest player
     let nearest: any = null;
     let minDist = Infinity;
 
@@ -174,7 +208,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
     const angle = Phaser.Math.Angle.Between(this.x, this.y, this.target.x, this.target.y);
     this.facingAngle = angle;
     
-    this.body.setVelocity(
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    body.setVelocity(
       Math.cos(angle) * this.enemyData.speed,
       Math.sin(angle) * this.enemyData.speed
     );
@@ -254,6 +289,13 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
 
     player.takeDamage(this.enemyData.damage);
     
+    // Emit damage event for debug overlay
+    this.scene.events.emit('playerDamaged', {
+      playerId: player.playerId,
+      amount: this.enemyData.damage,
+      source: this.enemyData.id
+    });
+    
     // Visual feedback
     this.scene.cameras.main.flash(50, 255, 100, 100);
   }
@@ -292,6 +334,9 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
     if (!this.health.isAlive) return 0;
 
     let finalDamage = amount;
+    const playerId = fromPlayer?.playerId ?? -1;
+    const isBreaker = playerId === 0;
+    const isAmplifier = playerId === 1;
 
     // Shield reduction for shieldbearers
     if (this.enemyData.frontShield && this.isAttackBlocked(fromPlayer)) {
@@ -299,37 +344,129 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
       this.scene.events.emit('shieldHit', this);
     }
 
+    // === ROLE SYNERGY DAMAGE ===
+    
+    // Amplifier does 2.5x damage to BROKEN enemies
+    if (isAmplifier && this.isBroken()) {
+      finalDamage *= 2.5;
+      
+      // SYNERGY: Break → Detonate explosion!
+      this.scene.events.emit('synergyTriggered', {
+        type: 'break_detonate',
+        x: this.x,
+        y: this.y,
+        damage: 40,
+        radius: 60
+      });
+    }
+    
+    // Breaker does 1.5x damage to MARKED enemies + spreads mark
+    if (isBreaker && this.isMarked()) {
+      finalDamage *= 1.5;
+      
+      // SYNERGY: Spread mark to nearby enemies
+      this.scene.events.emit('synergyTriggered', {
+        type: 'marked_shatter',
+        x: this.x,
+        y: this.y,
+        spreadRadius: 80
+      });
+    }
+
     const actualDamage = this.health.damage(finalDamage);
     
-    // Visual feedback
+    // Visual feedback - show state colors
     this.setTint(0xff0000);
     this.scene.time.delayedCall(100, () => {
-      this.clearTint();
-      if (this.isMarked()) {
-        this.setTint(0xffff00);
-      }
+      this.updateStateTint();
     });
 
     return actualDamage;
   }
 
+  // === STATE MANAGEMENT ===
+  
+  /** Breaker applies BROKEN state - enemies take 2.5x from Amplifier */
+  applyBroken(duration: number): void {
+    this.brokenUntil = this.scene.time.now + duration;
+    this.updateStateTint();
+    
+    // Visual pulse effect
+    this.scene.tweens.add({
+      targets: this,
+      scaleX: this.scaleX * 1.2,
+      scaleY: this.scaleY * 1.2,
+      duration: 100,
+      yoyo: true,
+      ease: 'Power2'
+    });
+    
+    this.scene.events.emit('enemyBroken', { enemy: this, x: this.x, y: this.y });
+  }
+  
+  isBroken(): boolean {
+    return this.scene.time.now < this.brokenUntil;
+  }
+
+  /** Amplifier applies MARKED state - enemies take 1.5x from Breaker */
   mark(duration: number): void {
     this.markedUntil = this.scene.time.now + duration;
-    this.setTint(0xffff00);
+    this.updateStateTint();
   }
 
   isMarked(): boolean {
     return this.scene.time.now < this.markedUntil;
   }
+  
+  private updateStateTint(): void {
+    if (!this.active) return;
+    
+    if (this.isBroken() && this.isMarked()) {
+      // Both states = purple (synergy ready!)
+      this.setTint(0xff00ff);
+    } else if (this.isBroken()) {
+      // Broken = orange (Amplifier bonus)
+      this.setTint(0xffaa00);
+    } else if (this.isMarked()) {
+      // Marked = cyan (Breaker bonus)
+      this.setTint(0x00ffff);
+    } else {
+      this.clearTint();
+    }
+  }
+
+  /** Apply knockback from Breaker hits */
+  applyKnockback(fromX: number, fromY: number, force: number): void {
+    const angle = Phaser.Math.Angle.Between(fromX, fromY, this.x, this.y);
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    if (body) {
+      body.setVelocity(
+        Math.cos(angle) * force,
+        Math.sin(angle) * force
+      );
+    }
+  }
 
   private onDeath(): void {
-    this.scene.events.emit('enemyKilled', this);
+    const isElite = (this as any).isElite || false;
+    
+    // Emit detailed kill event for debug overlay
+    this.scene.events.emit('enemyKilled', {
+      id: (this as any).enemyId,
+      isElite: isElite,
+      hp: this.enemyData.hp,
+      type: this.enemyData.id
+    });
+    
+    // Emit VFX event for death particles
+    if (isElite) {
+      this.scene.events.emit('eliteDeath', { x: this.x, y: this.y, color: this.baseColor });
+    } else {
+      this.scene.events.emit('enemyDeath', { x: this.x, y: this.y, color: this.baseColor });
+    }
     
     // Drop XP
     this.scene.events.emit('dropXP', this.x, this.y, this.enemyData.xpValue);
-    
-    // Death effect
-    this.createDeathEffect();
     
     this.deactivate();
   }

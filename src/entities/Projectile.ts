@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { PooledObject } from '@/types/GameTypes';
+import { createProjectileSprite, PALETTE } from '@/systems/AnimationSystem';
 
 export class Projectile extends Phaser.Physics.Arcade.Sprite implements PooledObject {
   public active: boolean = false;
@@ -7,6 +8,7 @@ export class Projectile extends Phaser.Physics.Arcade.Sprite implements PooledOb
   public pierce: number = 0;
   public ownerId: number = 0;
   public heavy: boolean = false;
+  public projectileColor: number = 0xffffff;
   
   private pierceCount: number = 0;
   private lifetime: number = 3000; // 3 seconds
@@ -17,7 +19,7 @@ export class Projectile extends Phaser.Physics.Arcade.Sprite implements PooledOb
     // Create texture first before calling super
     const textureKey = 'projectile';
     if (!scene.textures.exists(textureKey)) {
-      const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+      const graphics = scene.add.graphics();
       graphics.fillStyle(0xffffff);
       graphics.fillCircle(4, 4, 4);
       graphics.generateTexture(textureKey, 8, 8);
@@ -42,14 +44,27 @@ export class Projectile extends Phaser.Physics.Arcade.Sprite implements PooledOb
     color: number;
     ownerId: number;
     heavy?: boolean;
+    projectileType?: 'damage' | 'support' | 'explosive' | 'enemy';
   }): void {
     this.active = true;
     this.setActive(true);
     this.setVisible(true);
     
     this.setPosition(data.x, data.y);
-    this.setScale(data.size / 4); // Scale relative to the 8x8 texture
-    this.setTint(data.color);
+    
+    // Use palette-based projectile sprite (color = function)
+    const projType = data.projectileType || (data.heavy ? 'explosive' : 'damage');
+    const textureKey = createProjectileSprite(this.scene, projType, Math.max(8, data.size * 2));
+    this.setTexture(textureKey);
+    this.setScale(data.size / 4);
+    
+    // Apply color tint based on owner
+    const ownerColors = [PALETTE.P1_PRIMARY, PALETTE.P2_PRIMARY];
+    if (data.ownerId >= 0 && data.ownerId < 2) {
+      this.setTint(ownerColors[data.ownerId]);
+    } else {
+      this.setTint(PALETTE.PROJ_ENEMY);
+    }
     
     this.damage = data.damage;
     this.pierce = data.pierce;
@@ -58,19 +73,21 @@ export class Projectile extends Phaser.Physics.Arcade.Sprite implements PooledOb
     this.heavy = data.heavy || false;
     
     this.velocity.setToPolar(data.angle, data.speed);
+    this.projectileColor = data.color;
     
-    this.body.setVelocity(this.velocity.x, this.velocity.y);
-    this.body.setCircle(data.size);
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    body.setVelocity(this.velocity.x, this.velocity.y);
+    body.setCircle(data.size);
     
     this.spawnTime = this.scene.time.now;
 
-    // Heavy weapons have trails
+    // Heavy weapons have trails and larger size
     if (this.heavy) {
-      this.setAlpha(0.8);
-      this.setScale(1.5);
+      this.setAlpha(0.9);
+      this.setScale(data.size / 3);
+      this.setTint(PALETTE.PROJ_EXPLOSIVE);
     } else {
       this.setAlpha(1);
-      this.setScale(1);
     }
   }
 
@@ -80,7 +97,8 @@ export class Projectile extends Phaser.Physics.Arcade.Sprite implements PooledOb
     this.setVisible(false);
     this.pierceCount = 0;
     
-    this.body.setVelocity(0, 0);
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    if (body) body.setVelocity(0, 0);
   }
 
   deactivate(): void {
@@ -126,7 +144,7 @@ export class Projectile extends Phaser.Physics.Arcade.Sprite implements PooledOb
       scale: { start: 0.5, end: 0 },
       lifespan: 300,
       quantity: this.heavy ? 10 : 5,
-      tint: this.fillColor
+      tint: this.projectileColor
     });
 
     this.scene.time.delayedCall(300, () => particles.destroy());

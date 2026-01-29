@@ -1,0 +1,315 @@
+{
+  "weapons": {
+    "fire_thrower": {
+      "id": "fire_thrower",
+      "name": "Inferno Cannon",
+      "description": "Spews flames that ignite enemies. Burns spread on kill.",
+      "icon": "🔥",
+      
+      "baseDamage": 8,
+      "baseFireRate": 6,
+      "baseRange": 200,
+      "basePierce": 3,
+      "baseProjectileSpeed": 350,
+      "baseProjectileSize": 12,
+      
+      "firePattern": "spread",
+      "damageType": "fire",
+      
+      "projectileColor": "0xff6600",
+      "muzzleFlash": true,
+      "trailEffect": "fire_trail",
+      
+      "synergyTags": ["burn", "dot", "aoe", "ranged"],
+      "scalingRules": [
+        { "stat": "damage", "baseMultiplier": 1.0, "softCap": 50, "hardCap": 100 },
+        { "stat": "fireRate", "baseMultiplier": 0.8, "softCap": 12, "hardCap": 15 },
+        { "stat": "dotDamage", "baseMultiplier": 1.5, "softCap": 30, "hardCap": 50 },
+        { "stat": "aoeRadius", "baseMultiplier": 1.2, "softCap": 80, "hardCap": 120 }
+      ],
+      
+      "behaviors": ["apply_burn", "burn_spread_on_kill"],
+      
+      "unlockedByDefault": true
+    },
+    
+    "ricochet_gun": {
+      "id": "ricochet_gun",
+      "name": "Bouncer",
+      "description": "Shots ricochet between enemies. More bounces near walls.",
+      "icon": "🌀",
+      
+      "baseDamage": 15,
+      "baseFireRate": 3,
+      "baseRange": 400,
+      "basePierce": 1,
+      "baseProjectileSpeed": 500,
+      "baseProjectileSize": 6,
+      
+      "firePattern": "projectile",
+      "damageType": "physical",
+      
+      "projectileColor": "0x00ffff",
+      "muzzleFlash": true,
+      "trailEffect": "spark_trail",
+      
+      "synergyTags": ["single_target", "ranged", "chain", "crit"],
+      "scalingRules": [
+        { "stat": "damage", "baseMultiplier": 1.2, "softCap": 60, "hardCap": 120 },
+        { "stat": "bounceCount", "baseMultiplier": 1.0, "softCap": 5, "hardCap": 8 },
+        { "stat": "critChance", "baseMultiplier": 1.5, "softCap": 0.4, "hardCap": 0.6 }
+      ],
+      
+      "behaviors": ["ricochet", "wall_bounce_bonus"],
+      
+      "unlockedByDefault": true
+    },
+    
+    "life_drain_aura": {
+      "id": "life_drain_aura",
+      "name": "Vampiric Embrace",
+      "description": "Drains life from nearby enemies. Heals more at low HP.",
+      "icon": "💉",
+      
+      "baseDamage": 5,
+      "baseFireRate": 4,
+      "baseRange": 100,
+      "basePierce": 99,
+      "baseProjectileSpeed": 0,
+      "baseProjectileSize": 100,
+      
+      "firePattern": "aura",
+      "damageType": "void",
+      
+      "projectileColor": "0x9900ff",
+      "muzzleFlash": false,
+      "trailEffect": null,
+      
+      "synergyTags": ["aoe", "lifesteal", "melee", "dot"],
+      "scalingRules": [
+        { "stat": "damage", "baseMultiplier": 0.8, "softCap": 20, "hardCap": 40 },
+        { "stat": "aoeRadius", "baseMultiplier": 1.0, "softCap": 180, "hardCap": 250 },
+        { "stat": "lifesteal", "baseMultiplier": 2.0, "softCap": 0.3, "hardCap": 0.5 }
+      ],
+      
+      "behaviors": ["aura_pulse", "lifesteal", "low_hp_bonus"],
+      
+      "unlockedByDefault": true
+    },
+    
+    "arc_rifle": {
+      "id": "arc_rifle",
+      "name": "Storm Caller",
+      "description": "Marks targets with lightning. Marked enemies chain damage.",
+      "icon": "⚡",
+      
+      "baseDamage": 12,
+      "baseFireRate": 2.5,
+      "baseRange": 350,
+      "basePierce": 0,
+      "baseProjectileSpeed": 600,
+      "baseProjectileSize": 4,
+      
+      "firePattern": "projectile",
+      "damageType": "lightning",
+      
+      "projectileColor": "0xffff00",
+      "muzzleFlash": true,
+      "trailEffect": "lightning_trail",
+      
+      "synergyTags": ["mark", "shock", "chain", "ranged", "prime"],
+      "scalingRules": [
+        { "stat": "damage", "baseMultiplier": 1.0, "softCap": 40, "hardCap": 80 },
+        { "stat": "chainCount", "baseMultiplier": 1.0, "softCap": 4, "hardCap": 6 },
+        { "stat": "range", "baseMultiplier": 1.2, "softCap": 500, "hardCap": 600 }
+      ],
+      
+      "behaviors": ["apply_shock_mark", "chain_to_marked", "marked_explosion"],
+      
+      "unlockedByDefault": true
+    },
+    
+    "frost_lance": {
+      "id": "frost_lance",
+      "name": "Glacier's Edge",
+      "description": "Piercing ice that slows. Frozen enemies shatter on death.",
+      "icon": "❄️",
+      
+      "baseDamage": 18,
+      "baseFireRate": 1.5,
+      "baseRange": 450,
+      "basePierce": 5,
+      "baseProjectileSpeed": 450,
+      "baseProjectileSize": 8,
+      
+      "firePattern": "projectile",
+      "damageType": "ice",
+      
+      "projectileColor": "0x00ccff",
+      "muzzleFlash": true,
+      "trailEffect": "frost_trail",
+      
+      "synergyTags": ["freeze", "pierce", "ranged", "aoe", "group"],
+      "scalingRules": [
+        { "stat": "damage", "baseMultiplier": 1.1, "softCap": 50, "hardCap": 90 },
+        { "stat": "pierce", "baseMultiplier": 1.0, "softCap": 10, "hardCap": 15 },
+        { "stat": "projectileSpeed", "baseMultiplier": 0.8, "softCap": 600, "hardCap": 700 }
+      ],
+      
+      "behaviors": ["apply_slow", "freeze_on_stack", "shatter_on_death"],
+      
+      "unlockedByDefault": false,
+      "unlockCondition": "reach_wave_10"
+    },
+    
+    "toxic_cloud": {
+      "id": "toxic_cloud",
+      "name": "Plague Bearer",
+      "description": "Launches poison clouds that linger. Stacks amplify damage.",
+      "icon": "☠️",
+      
+      "baseDamage": 3,
+      "baseFireRate": 2,
+      "baseRange": 300,
+      "basePierce": 99,
+      "baseProjectileSpeed": 200,
+      "baseProjectileSize": 40,
+      
+      "firePattern": "mine",
+      "damageType": "poison",
+      
+      "projectileColor": "0x00ff00",
+      "muzzleFlash": false,
+      "trailEffect": null,
+      
+      "synergyTags": ["poison", "dot", "aoe", "weaken"],
+      "scalingRules": [
+        { "stat": "dotDamage", "baseMultiplier": 1.5, "softCap": 15, "hardCap": 25 },
+        { "stat": "dotDuration", "baseMultiplier": 1.0, "softCap": 8000, "hardCap": 12000 },
+        { "stat": "aoeRadius", "baseMultiplier": 1.2, "softCap": 80, "hardCap": 120 }
+      ],
+      
+      "behaviors": ["lingering_cloud", "stacking_poison", "weaken_on_max_stacks"],
+      
+      "unlockedByDefault": false,
+      "unlockCondition": "kill_500_enemies"
+    },
+    
+    "void_orbitals": {
+      "id": "void_orbitals",
+      "name": "Dark Satellites",
+      "description": "Summons orbs that orbit you. Enemies near orbs take % HP damage.",
+      "icon": "🔮",
+      
+      "baseDamage": 2,
+      "baseFireRate": 1,
+      "baseRange": 120,
+      "basePierce": 99,
+      "baseProjectileSpeed": 0,
+      "baseProjectileSize": 16,
+      
+      "firePattern": "orbital",
+      "damageType": "void",
+      
+      "projectileColor": "0x660066",
+      "muzzleFlash": false,
+      "trailEffect": "void_trail",
+      
+      "synergyTags": ["aoe", "melee", "summon", "execute"],
+      "scalingRules": [
+        { "stat": "projectileCount", "baseMultiplier": 1.0, "softCap": 6, "hardCap": 8 },
+        { "stat": "damage", "baseMultiplier": 0.5, "softCap": 5, "hardCap": 8 },
+        { "stat": "range", "baseMultiplier": 1.0, "softCap": 180, "hardCap": 220 }
+      ],
+      
+      "behaviors": ["orbital_rotation", "percent_hp_damage", "execute_low_hp"],
+      
+      "unlockedByDefault": false,
+      "unlockCondition": "complete_run"
+    },
+    
+    "holy_beam": {
+      "id": "holy_beam",
+      "name": "Divine Retribution",
+      "description": "Continuous beam that deals bonus damage to elites.",
+      "icon": "✨",
+      
+      "baseDamage": 6,
+      "baseFireRate": 20,
+      "baseRange": 300,
+      "basePierce": 2,
+      "baseProjectileSpeed": 9999,
+      "baseProjectileSize": 10,
+      
+      "firePattern": "beam",
+      "damageType": "holy",
+      
+      "projectileColor": "0xffffcc",
+      "muzzleFlash": true,
+      "trailEffect": null,
+      
+      "synergyTags": ["single_target", "ranged", "burst"],
+      "scalingRules": [
+        { "stat": "damage", "baseMultiplier": 0.6, "softCap": 15, "hardCap": 25 },
+        { "stat": "range", "baseMultiplier": 1.0, "softCap": 450, "hardCap": 550 },
+        { "stat": "pierce", "baseMultiplier": 0.8, "softCap": 4, "hardCap": 6 }
+      ],
+      
+      "behaviors": ["continuous_beam", "elite_bonus_damage", "holy_burst_on_kill"],
+      
+      "unlockedByDefault": false,
+      "unlockCondition": "defeat_boss"
+    }
+  },
+  
+  "starterLoadouts": [
+    {
+      "id": "pyromancer",
+      "name": "Pyromancer",
+      "description": "Master of flames. Burns everything.",
+      "weaponId": "fire_thrower",
+      "startingUpgrades": ["burn_duration_1"],
+      "recommendedPartner": "storm_caller"
+    },
+    {
+      "id": "bounty_hunter",
+      "name": "Bounty Hunter",
+      "description": "Precision shooter. Ricochets find targets.",
+      "weaponId": "ricochet_gun",
+      "startingUpgrades": ["crit_chance_1"],
+      "recommendedPartner": "plague_doctor"
+    },
+    {
+      "id": "blood_mage",
+      "name": "Blood Mage",
+      "description": "Drain life to survive. Close range powerhouse.",
+      "weaponId": "life_drain_aura",
+      "startingUpgrades": ["lifesteal_1"],
+      "recommendedPartner": "frost_warden"
+    },
+    {
+      "id": "storm_caller",
+      "name": "Storm Caller",
+      "description": "Mark and chain. Ultimate setup character.",
+      "weaponId": "arc_rifle",
+      "startingUpgrades": ["chain_count_1"],
+      "recommendedPartner": "pyromancer"
+    },
+    {
+      "id": "frost_warden",
+      "name": "Frost Warden",
+      "description": "Control the battlefield. Slow and shatter.",
+      "weaponId": "frost_lance",
+      "startingUpgrades": ["slow_potency_1"],
+      "recommendedPartner": "blood_mage"
+    },
+    {
+      "id": "plague_doctor",
+      "name": "Plague Doctor",
+      "description": "Poison everything. Stack debuffs.",
+      "weaponId": "toxic_cloud",
+      "startingUpgrades": ["poison_stacks_1"],
+      "recommendedPartner": "bounty_hunter"
+    }
+  ]
+}
