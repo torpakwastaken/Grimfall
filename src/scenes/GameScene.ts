@@ -110,17 +110,16 @@ export class GameScene extends Phaser.Scene {
     console.log(`[GameScene] Running as ${this.isHost ? 'HOST' : 'GUEST'}, controlling player ${this.localPlayerIndex}`);
     
     // Set up network control flags
-    // Each player controls only ONE character based on their role
+    // Host runs the game, Guest just sends input and renders state
     const playerArray = this.players.getChildren() as Player[];
     if (this.isHost) {
-      // Host controls Player 1, Player 2 is controlled via network
+      // Host controls P1 locally, P2 is controlled via network input from guest
       if (playerArray[1]) playerArray[1].isNetworkControlled = true;
     } else {
-      // Guest: BOTH players get their positions from host, 
-      // but Guest sends input for Player 2's movement
-      // Actually, guest controls Player 1 in their view, which becomes P2 for host
-      // So we mark P2 as network controlled on guest (host moves it)
+      // Guest: BOTH players are network controlled (positions come from host)
+      // Guest reads WASD keyboard and sends to host for P2 movement
       if (playerArray[0]) playerArray[0].isNetworkControlled = true;
+      if (playerArray[1]) playerArray[1].isNetworkControlled = true;
     }
 
     // Initialize systems
@@ -529,8 +528,10 @@ export class GameScene extends Phaser.Scene {
     } else {
       // GUEST: Send input to host, then apply received state
       
-      // Send local player's input to host
+      // Guest reads WASD keys directly and sends to host for P2 control
+      // (P1's keys are WASD, so we use P1's getInputState but it controls P2 on host)
       if (playerArray[0]) {
+        // Read from P1's keys (WASD) since that's what guest uses
         this.networkSync.sendInput(playerArray[0]);
       }
       

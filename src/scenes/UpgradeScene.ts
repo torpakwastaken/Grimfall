@@ -11,6 +11,8 @@ export class UpgradeScene extends Phaser.Scene {
   private localPlayerId: number = 0; // Host controls P1 (0), Guest controls P2 (1)
   private waitingText?: Phaser.GameObjects.Text;
 
+  private upgradeSelectedHandler: ((msg: any) => void) | null = null;
+
   constructor() {
     super('UpgradeScene');
   }
@@ -23,15 +25,30 @@ export class UpgradeScene extends Phaser.Scene {
     this.selectedUpgrades.clear();
     this.cards = [];
     
+    console.log(`[UpgradeScene] init: isHost=${this.isHost}, localPlayerId=${this.localPlayerId}`);
+    
+    // Clean up old handlers before setting up new ones
+    this.cleanupNetworkHandlers();
+    
     // Setup network handlers
     this.setupNetworkHandlers();
   }
   
+  private cleanupNetworkHandlers(): void {
+    if (this.upgradeSelectedHandler) {
+      network.off('upgrade_selected', this.upgradeSelectedHandler);
+      this.upgradeSelectedHandler = null;
+    }
+  }
+  
   private setupNetworkHandlers(): void {
     // Receive partner's upgrade selection
-    network.on('upgrade_selected', (msg: any) => {
+    this.upgradeSelectedHandler = (msg: any) => {
       if (msg.playerId !== undefined && msg.upgradeId) {
         console.log(`[UpgradeScene] Partner selected upgrade: P${msg.playerId} -> ${msg.upgradeId}`);
+        
+        // Only process if we haven't already selected for this player
+        if (this.selectedUpgrades.has(msg.playerId)) return;
         
         // Mark as selected visually
         this.selectedUpgrades.set(msg.playerId, msg.upgradeId);
@@ -40,7 +57,8 @@ export class UpgradeScene extends Phaser.Scene {
         // Check if both selected
         this.checkBothSelected();
       }
-    });
+    };
+    network.on('upgrade_selected', this.upgradeSelectedHandler);
   }
   
   private markPartnerSelection(playerId: number, upgradeId: string): void {
@@ -317,6 +335,7 @@ export class UpgradeScene extends Phaser.Scene {
 
     // Resume game and stop this scene
     console.log('Applying upgrades and resuming game...');
+    this.cleanupNetworkHandlers();
     this.scene.resume('GameScene');
     console.log('GameScene resumed, stopping UpgradeScene...');
     this.scene.stop('UpgradeScene');
