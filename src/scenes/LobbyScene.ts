@@ -374,8 +374,8 @@ export class LobbyScene extends Phaser.Scene {
       }
     });
     
-    // Game starting (guest receives this from host)
-    network.on('game_start', () => {
+    // Proceeding to weapon select (guest receives this from host)
+    network.on('proceed_to_weapons', () => {
       this.proceedToWeaponSelect();
     });
     
@@ -390,7 +390,7 @@ export class LobbyScene extends Phaser.Scene {
   private proceedToWeaponSelect(): void {
     // If host, tell the guest to also proceed
     if (network.isHost()) {
-      network.startGame();
+      network.proceedToWeaponSelect();
     }
     
     // Store network state in registry for other scenes

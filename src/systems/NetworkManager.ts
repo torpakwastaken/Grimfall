@@ -68,6 +68,7 @@ export type NetworkMessage =
   | { type: 'player_left'; playerId: string }
   | { type: 'weapon_selected'; weaponId: string }
   | { type: 'player_ready'; ready: boolean }
+  | { type: 'proceed_to_weapons' }
   | { type: 'game_start' }
   | { type: 'player_input'; input: PlayerInput }
   | { type: 'game_state'; state: GameStateSync }
@@ -327,7 +328,20 @@ export class NetworkManager {
   }
   
   /**
-   * Start the game (host only)
+   * Proceed from lobby to weapon select (host only)
+   */
+  proceedToWeaponSelect(): void {
+    if (this.localPlayerId === 'player1') {
+      this.send({ type: 'proceed_to_weapons' });
+      
+      if (this.isOfflineMode) {
+        this.emit({ type: 'proceed_to_weapons' });
+      }
+    }
+  }
+  
+  /**
+   * Start the actual game from weapon select (host only)
    */
   startGame(): void {
     if (this.localPlayerId === 'player1') {
