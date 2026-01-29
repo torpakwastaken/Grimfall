@@ -9,6 +9,9 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
   public health!: Health;
   public enemyData!: EnemyData;
   
+  // Network sync properties
+  public enemyId: string = '';
+  
   private bodyShape!: Phaser.GameObjects.Shape;
   private hpBar!: Phaser.GameObjects.Graphics;
   private target: { x: number; y: number } | null = null;
@@ -138,6 +141,70 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
 
   deactivate(): void {
     this.reset();
+  }
+
+  /**
+   * Network spawn - simplified activation for guest clients
+   * Spawns an enemy based on minimal state from host
+   */
+  spawn(type: string, x: number, y: number, scale: number = 1, health: number = 100): void {
+    // Try to get data for this type, or use a default
+    const enemyDataJson = (this.scene as any).cache?.json?.get('enemies') || {};
+    const data = enemyDataJson[type] || {
+      id: type,
+      type: 'basic',
+      hp: health,
+      damage: 10,
+      speed: 80,
+      size: 15,
+      color: '0xff0000'
+    };
+    
+    this.active = true;
+    this.setActive(true);
+    this.setVisible(true);
+    this.setPosition(x, y);
+    
+    this.enemyData = data;
+    
+    // Get palette color
+    const paletteColors: Record<string, number> = {
+      'swarmer': PALETTE.ENEMY_SWARMER,
+      'shambler': PALETTE.ENEMY_SHAMBLER,
+      'shieldbearer': PALETTE.ENEMY_SHIELDBEARER,
+      'sniper': PALETTE.ENEMY_SNIPER
+    };
+    this.baseColor = paletteColors[data.id] || parseInt(data.color);
+    
+    // Create texture
+    const spriteSize = Math.max(24, data.size * 2);
+    const textureKey = createEnemySprite(this.scene, data.id, spriteSize);
+    this.setTexture(textureKey);
+    this.setScale(scale);
+    
+    // Initialize health
+    this.health = new Health(
+      this,
+      health,
+      () => this.onDeath(),
+      () => this.onDamage()
+    );
+    
+    // Physics
+    if (!this.body) {
+      this.scene.physics.add.existing(this);
+    }
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    if (body) {
+      body.setCircle(data.size);
+      body.setCollideWorldBounds(true);
+    }
+    
+    // Create hp bar if needed
+    if (!this.hpBar) {
+      this.hpBar = this.scene.add.graphics();
+    }
+    this.updateHPBar();
   }
 
   private updateBodyShape(data: EnemyData): void {

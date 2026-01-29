@@ -161,7 +161,7 @@ export class SpawnSystem {
       const enemyId = ++this.enemyIdCounter;
       enemy.activate(scaledData, spawnPos.x, spawnPos.y);
       (enemy as any).isElite = isElite;
-      (enemy as any).enemyId = enemyId;
+      enemy.enemyId = `e_${enemyId}`; // Network-friendly string ID
       (enemy as any).eliteModifier = (scaledData as any).eliteModifier || null;
       this.activeEnemyCount++;
       if (isElite) {

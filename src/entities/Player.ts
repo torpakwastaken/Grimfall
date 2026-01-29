@@ -53,6 +53,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private invulnerable: boolean = false;
   private invulnerableUntil: number = 0;
 
+  // Network multiplayer flags
+  public isNetworkControlled: boolean = false; // If true, skip local input (controlled by network)
+  private remoteFiring: boolean = false; // Remote player's firing state
+
   // Upgrades
   public hasMarkerRounds: boolean = false;
   public hasDetonateShot: boolean = false;
@@ -164,6 +168,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   private handleMovement(delta: number): void {
+    // Skip local input if this player is network controlled
+    if (this.isNetworkControlled) return;
+    
     const velocity = { x: 0, y: 0 };
     const speed = this.stats.moveSpeed;
 
@@ -240,6 +247,24 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     return nearest;
+  }
+
+  // === Network Multiplayer Methods ===
+  
+  // Set firing state from remote player
+  setFiringState(firing: boolean): void {
+    this.remoteFiring = firing;
+  }
+  
+  // Get current input state to send over network
+  getInputState(): { up: boolean; down: boolean; left: boolean; right: boolean; firing: boolean } {
+    return {
+      up: this.keys.get('up')?.isDown || false,
+      down: this.keys.get('down')?.isDown || false,
+      left: this.keys.get('left')?.isDown || false,
+      right: this.keys.get('right')?.isDown || false,
+      firing: this.keys.get('heavy')?.isDown || false
+    };
   }
 
   private applyBuffs(): void {

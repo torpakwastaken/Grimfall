@@ -14,6 +14,7 @@ import { registerShaderPipelines } from '@/systems/ShaderPipelines';
 import { AnimationSystem, createPlayerSprite, createEnemySprite, PALETTE } from '@/systems/AnimationSystem';
 import { CoopVFXSystem } from '@/systems/CoopVFXSystem';
 import { initPerformanceManager, getPerformanceManager } from '@/systems/PerformanceConfig';
+import { GameNetworkSync } from '@/systems/GameNetworkSync';
 import { WeaponConfig } from '@/types/GameTypes';
 
 export class GameScene extends Phaser.Scene {
@@ -32,6 +33,11 @@ export class GameScene extends Phaser.Scene {
   public vfxSystem!: VFXSystem;
   public animationSystem!: AnimationSystem;
   public coopVFXSystem!: CoopVFXSystem;
+  private networkSync!: GameNetworkSync;
+  
+  // Network state
+  private isHost: boolean = true;
+  private localPlayerIndex: number = 0;
 
   // UI
   private hud!: {
@@ -96,6 +102,26 @@ export class GameScene extends Phaser.Scene {
 
     // Create players
     this.createPlayers();
+    
+    // Initialize network sync (AFTER players are created)
+    this.networkSync = new GameNetworkSync(this);
+    this.isHost = this.networkSync.isHostPlayer();
+    this.localPlayerIndex = this.networkSync.getLocalPlayerIndex();
+    console.log(`[GameScene] Running as ${this.isHost ? 'HOST' : 'GUEST'}, controlling player ${this.localPlayerIndex}`);
+    
+    // Set up network control flags
+    // Each player controls only ONE character based on their role
+    const playerArray = this.players.getChildren() as Player[];
+    if (this.isHost) {
+      // Host controls Player 1, Player 2 is controlled via network
+      if (playerArray[1]) playerArray[1].isNetworkControlled = true;
+    } else {
+      // Guest: BOTH players get their positions from host, 
+      // but Guest sends input for Player 2's movement
+      // Actually, guest controls Player 1 in their view, which becomes P2 for host
+      // So we mark P2 as network controlled on guest (host moves it)
+      if (playerArray[0]) playerArray[0].isNetworkControlled = true;
+    }
 
     // Initialize systems
     this.combatSystem = new CombatSystem(this);
@@ -436,51 +462,94 @@ export class GameScene extends Phaser.Scene {
     const fps = this.game.loop.actualFps;
     getPerformanceManager().update(fps, time);
 
-    // Update players
     const playerArray = this.players.getChildren() as Player[];
-    for (const player of playerArray) {
-      if (player.active) {
-        player.update(time, delta);
-        
-        // Apply movement squash/stretch animation
-        const body = player.body as Phaser.Physics.Arcade.Body;
-        if (body) {
-          this.animationSystem.applyMovementSquash(
-            player, 
-            body.velocity.x, 
-            body.velocity.y
-          );
+    const enemyArray = this.enemies.getChildren() as Enemy[];
+
+    // === NETWORK SYNC LOGIC ===
+    if (this.isHost) {
+      // HOST: Run game normally, then broadcast state to guest
+      
+      // Update players
+      for (const player of playerArray) {
+        if (player.active) {
+          // For player 2, apply guest's input if available
+          if (player.playerId === 1) {
+            const partnerInput = this.networkSync.getPartnerInput();
+            if (partnerInput) {
+              this.applyRemoteInput(player, partnerInput);
+            }
+          }
+          player.update(time, delta);
+          
+          const body = player.body as Phaser.Physics.Arcade.Body;
+          if (body) {
+            this.animationSystem.applyMovementSquash(player, body.velocity.x, body.velocity.y);
+          }
+        }
+      }
+
+      // Update enemies
+      for (const enemy of enemyArray) {
+        if (enemy.active) {
+          enemy.update(time, delta, playerArray);
+        }
+      }
+
+      // Update projectiles
+      const projectileArray = this.projectiles.getChildren() as Projectile[];
+      for (const projectile of projectileArray) {
+        if (projectile.active) {
+          projectile.update(time);
+        }
+      }
+
+      // Update XP gems
+      const gemArray = this.xpGems.getChildren() as XPGem[];
+      for (const gem of gemArray) {
+        if (gem.active) {
+          gem.update(time, delta, playerArray);
+        }
+      }
+
+      // Update systems (only host runs game logic)
+      this.spawnSystem.update(time, delta);
+      this.reviveSystem.update(time);
+      
+      // Send state to guest
+      this.networkSync.sendState(
+        playerArray,
+        enemyArray,
+        this.spawnSystem.getCurrentWave(),
+        0, // Score tracking not implemented yet
+        this.spawnSystem.getElapsedTime()
+      );
+      
+    } else {
+      // GUEST: Send input to host, then apply received state
+      
+      // Send local player's input to host
+      if (playerArray[0]) {
+        this.networkSync.sendInput(playerArray[0]);
+      }
+      
+      // Apply state received from host
+      const state = this.networkSync.getPendingState();
+      if (state) {
+        this.networkSync.applyState(state, playerArray, this.enemies, this.spawnSystem);
+      }
+      
+      // Still update animations locally for smoothness
+      for (const player of playerArray) {
+        if (player.active) {
+          const body = player.body as Phaser.Physics.Arcade.Body;
+          if (body) {
+            this.animationSystem.applyMovementSquash(player, body.velocity.x, body.velocity.y);
+          }
         }
       }
     }
 
-    // Update enemies
-    const enemyArray = this.enemies.getChildren() as Enemy[];
-    for (const enemy of enemyArray) {
-      if (enemy.active) {
-        enemy.update(time, delta, playerArray);
-      }
-    }
-
-    // Update projectiles
-    const projectileArray = this.projectiles.getChildren() as Projectile[];
-    for (const projectile of projectileArray) {
-      if (projectile.active) {
-        projectile.update(time);
-      }
-    }
-
-    // Update XP gems
-    const gemArray = this.xpGems.getChildren() as XPGem[];
-    for (const gem of gemArray) {
-      if (gem.active) {
-        gem.update(time, delta, playerArray);
-      }
-    }
-
-    // Update systems
-    this.spawnSystem.update(time, delta);
-    this.reviveSystem.update(time);
+    // Both host and guest update these
     this.debugOverlay.update();
     this.vfxSystem.update(time, delta);
     this.coopVFXSystem.update(delta);
@@ -490,6 +559,33 @@ export class GameScene extends Phaser.Scene {
 
     // Update camera to follow midpoint
     this.updateCameraTarget(playerArray);
+  }
+  
+  // Apply input received from remote player
+  private applyRemoteInput(player: Player, input: { up: boolean; down: boolean; left: boolean; right: boolean; firing: boolean }): void {
+    const speed = player.stats.moveSpeed;
+    const body = player.body as Phaser.Physics.Arcade.Body;
+    if (!body) return;
+    
+    let vx = 0;
+    let vy = 0;
+    
+    if (input.left) vx -= speed;
+    if (input.right) vx += speed;
+    if (input.up) vy -= speed;
+    if (input.down) vy += speed;
+    
+    // Normalize diagonal movement
+    if (vx !== 0 && vy !== 0) {
+      const factor = Math.SQRT1_2;
+      vx *= factor;
+      vy *= factor;
+    }
+    
+    body.setVelocity(vx, vy);
+    
+    // Handle firing state
+    player.setFiringState(input.firing);
   }
 
   private updateHUD(): void {

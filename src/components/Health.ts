@@ -26,6 +26,12 @@ export class Health {
     return this._current;
   }
 
+  // Network sync setter - directly set current HP
+  setCurrent(value: number): void {
+    this._current = Math.min(Math.max(0, value), this._max);
+    this._isAlive = this._current > 0;
+  }
+
   get max(): number {
     return this._max;
   }
