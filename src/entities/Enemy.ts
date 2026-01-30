@@ -171,20 +171,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
       this.health.setCurrent(health);
     }
     
-    // Physics - only add if needed
-    if (!this.body) {
-      this.scene.physics.add.existing(this);
-    }
-    const body = this.body as Phaser.Physics.Arcade.Body | null;
-    if (body) {
-      body.setCircle(15);
-      body.setCollideWorldBounds(true);
-    }
-    
-    // Create hp bar only if needed
-    if (!this.hpBar) {
-      this.hpBar = this.scene.add.graphics();
-    }
+    // Skip physics and HP bar for network spawns - guest doesn't need them
   }
 
   /**

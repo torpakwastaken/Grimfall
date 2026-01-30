@@ -110,6 +110,12 @@ export class GameScene extends Phaser.Scene {
     this.localPlayerIndex = this.networkSync.getLocalPlayerIndex();
     console.log(`[GameScene] Running as ${this.isHost ? 'HOST' : 'GUEST'}, controlling player ${this.localPlayerIndex}`);
     
+    // GUEST OPTIMIZATION: Disable physics entirely - guest just renders positions from host
+    if (!this.isHost) {
+      this.physics.world.pause();
+      console.log('[GameScene] Physics disabled on guest for performance');
+    }
+    
     // Set up network control flags
     // Host runs the game, Guest just sends input and renders state
     const playerArray = this.players.getChildren() as Player[];
@@ -164,47 +170,56 @@ export class GameScene extends Phaser.Scene {
     const perfManager = getPerformanceManager();
     const profile = perfManager.getProfile();
     
-    // Players pool
+    // Check if we're host (registry is set before create)
+    const isHost = this.registry.get('isHost') ?? true;
+    
+    // Players pool - NO auto-update, we call update manually
     this.players = this.add.group({
-      runChildUpdate: true
+      runChildUpdate: false
     });
 
-    // Enemies pool (respects performance profile)
+    // Enemies pool - only host needs auto-update
     this.enemies = this.add.group({
       classType: Enemy,
-      maxSize: profile.maxEnemies,
-      runChildUpdate: true
+      maxSize: isHost ? profile.maxEnemies : 50, // Guest only needs to display synced enemies (max 30)
+      runChildUpdate: false  // We manually call update on host only
     });
 
-    const enemyPoolSize = Math.min(500, profile.maxEnemies);
+    // Only create large enemy pool on host
+    const enemyPoolSize = isHost ? Math.min(500, profile.maxEnemies) : 50;
     for (let i = 0; i < enemyPoolSize; i++) {
       const enemy = new Enemy(this);
       this.enemies.add(enemy, true);
     }
 
-    // Projectiles pool (respects performance profile)
+    // Projectiles pool - only host needs these
     this.projectiles = this.add.group({
       classType: Projectile,
-      maxSize: profile.maxProjectiles,
-      runChildUpdate: true
+      maxSize: isHost ? profile.maxProjectiles : 10, // Guest needs minimal pool
+      runChildUpdate: false  // We manually call update on host only
     });
 
-    const projectilePoolSize = Math.min(1000, profile.maxProjectiles);
-    for (let i = 0; i < projectilePoolSize; i++) {
-      const projectile = new Projectile(this);
-      this.projectiles.add(projectile, true);
+    if (isHost) {
+      const projectilePoolSize = Math.min(1000, profile.maxProjectiles);
+      for (let i = 0; i < projectilePoolSize; i++) {
+        const projectile = new Projectile(this);
+        this.projectiles.add(projectile, true);
+      }
     }
 
-    // XP gems pool
+    // XP gems pool - only host needs these
     this.xpGems = this.add.group({
       classType: XPGem,
-      maxSize: 500,
-      runChildUpdate: true
+      maxSize: isHost ? 500 : 10,  // Guest needs minimal pool
+      runChildUpdate: false  // We manually call update on host only
     });
 
-    for (let i = 0; i < 500; i++) {
-      const gem = new XPGem(this);
-      this.xpGems.add(gem, true);
+    // Only create XP gems on host
+    if (isHost) {
+      for (let i = 0; i < 500; i++) {
+        const gem = new XPGem(this);
+        this.xpGems.add(gem, true);
+      }
     }
   }
 
