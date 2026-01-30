@@ -77,8 +77,9 @@ export class GameScene extends Phaser.Scene {
     const perfManager = getPerformanceManager();
     console.log(`[Performance] Starting with profile: ${perfManager.getProfile().name}`);
 
-    // Register custom shader pipelines (WebGL only, respects performance profile)
-    if (perfManager.getProfile().enableShaders) {
+    // Register custom shader pipelines (WebGL only, HOST ONLY - guest doesn't need them)
+    const isHostEarly = this.registry.get('isHost') ?? true;
+    if (isHostEarly && perfManager.getProfile().enableShaders) {
       registerShaderPipelines(this.game);
     }
 
@@ -576,6 +577,7 @@ export class GameScene extends Phaser.Scene {
       // GUEST: Minimal update - just send input and apply state
       
       // Guest reads WASD keys directly and sends to host for P2 control
+      // Only send if input changed (throttled inside sendInput)
       if (playerArray[0]) {
         this.networkSync.sendInput(playerArray[0]);
       }
@@ -584,16 +586,16 @@ export class GameScene extends Phaser.Scene {
       const state = this.networkSync.getPendingState();
       if (state) {
         this.networkSync.applyState(state, playerArray, this.enemies, this.spawnSystem);
-        
-        // Update player HP bars after applying state (they follow player position)
+      }
+      
+      // Update HP bars only every 5 frames (not every frame)
+      if (this.frameCount % 5 === 0) {
         for (const player of playerArray) {
           if (player.active) {
             player.updateHPBarPublic();
           }
         }
       }
-      
-      // Skip animations on guest - too expensive
     }
 
     // Update systems (skip expensive ones on guest)

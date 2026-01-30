@@ -413,20 +413,35 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  // Track last HP bar state to avoid unnecessary redraws
+  private lastHPBarX: number = 0;
+  private lastHPBarY: number = 0;
+  private lastHPPercent: number = 1;
+
   private updateHPBar(): void {
-    this.hpBar.clear();
-    
     const barWidth = 40;
     const barHeight = 4;
     const x = this.x - barWidth / 2;
     const y = this.y - 30;
+    const hpPercentage = this.health.percentage;
+    
+    // Only redraw if position or HP changed significantly
+    const posChanged = Math.abs(x - this.lastHPBarX) > 1 || Math.abs(y - this.lastHPBarY) > 1;
+    const hpChanged = Math.abs(hpPercentage - this.lastHPPercent) > 0.01;
+    
+    if (!posChanged && !hpChanged) return;
+    
+    this.lastHPBarX = x;
+    this.lastHPBarY = y;
+    this.lastHPPercent = hpPercentage;
+    
+    this.hpBar.clear();
 
     // Background
     this.hpBar.fillStyle(0x000000, 0.5);
     this.hpBar.fillRect(x, y, barWidth, barHeight);
 
     // Current HP
-    const hpPercentage = this.health.percentage;
     const color = hpPercentage > 0.5 ? 0x00ff00 : (hpPercentage > 0.25 ? 0xffff00 : 0xff0000);
     this.hpBar.fillStyle(color);
     this.hpBar.fillRect(x, y, barWidth * hpPercentage, barHeight);

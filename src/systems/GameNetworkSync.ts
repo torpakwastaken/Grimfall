@@ -38,6 +38,12 @@ export class GameNetworkSync {
   private partnerInput: LocalInput = { moveX: 0, moveY: 0, aimAngle: 0, firing: false };
   private hasReceivedPartnerInput: boolean = false;
   
+  // Track which enemies are currently active on guest (by pool index)
+  private activeEnemyCount: number = 0;
+  
+  // Input throttling - only send when changed
+  private lastSentInput: string = '';
+  
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
     this.isHost = scene.registry.get('isHost') ?? true;
@@ -130,6 +136,7 @@ export class GameNetworkSync {
   
   /**
    * Called every frame by guest to send their input
+   * OPTIMIZED: Only sends when input changes
    */
   sendInput(player: Player): void {
     if (this.isHost) return;
@@ -143,6 +150,13 @@ export class GameNetworkSync {
     if (input.right) moveX += 1;
     if (input.up) moveY -= 1;
     if (input.down) moveY += 1;
+    
+    // Create a simple hash to detect changes
+    const inputHash = `${moveX},${moveY},${input.firing ? 1 : 0}`;
+    
+    // Only send if input changed
+    if (inputHash === this.lastSentInput) return;
+    this.lastSentInput = inputHash;
     
     const playerInput: PlayerInput = {
       timestamp: Date.now(),
@@ -186,7 +200,7 @@ export class GameNetworkSync {
   
   /**
    * Apply received state to game entities (guest only)
-   * Ultra-optimized: no allocations, minimal work
+   * ULTRA-OPTIMIZED: No loops over inactive enemies, minimal work
    */
   applyState(
     state: GameStateSync,
@@ -218,42 +232,55 @@ export class GameNetworkSync {
       if (player1.health) player1.health.setCurrent(p1.health);
     }
     
-    // === SIMPLIFIED ENEMY SYNC ===
-    // Just deactivate all enemies and reactivate based on state
-    // This is simpler and avoids complex ID tracking
+    // === OPTIMIZED ENEMY SYNC ===
+    // Only touch enemies that need to change state
     const currentEnemies = enemies.getChildren() as Enemy[];
+    const stateEnemies = state.enemies;
+    const newCount = stateEnemies.length;
+    const oldCount = this.activeEnemyCount;
     
-    // Deactivate all enemies first
-    for (let i = 0; i < currentEnemies.length; i++) {
+    // Update existing active enemies (indices 0 to min(old, new))
+    const updateCount = Math.min(oldCount, newCount);
+    for (let i = 0; i < updateCount; i++) {
+      const es = stateEnemies[i];
       const enemy = currentEnemies[i];
-      if (enemy.active) {
-        enemy.setActive(false);
-        enemy.setVisible(false);
+      
+      // Update position directly (no setActive needed - already active)
+      enemy.x = es.x;
+      enemy.y = es.y;
+      
+      // Only change texture if type changed
+      const textureKey = `enemy_${es.type}_sprite`;
+      if (enemy.texture.key !== textureKey && enemy.scene.textures.exists(textureKey)) {
+        enemy.setTexture(textureKey);
       }
     }
     
-    // Activate enemies from state (reusing pool objects by index)
-    const stateEnemies = state.enemies;
-    for (let i = 0; i < stateEnemies.length && i < currentEnemies.length; i++) {
+    // Activate new enemies (if newCount > oldCount)
+    for (let i = oldCount; i < newCount && i < currentEnemies.length; i++) {
       const es = stateEnemies[i];
       const enemy = currentEnemies[i];
       
       enemy.setActive(true);
       enemy.setVisible(true);
-      enemy.setPosition(es.x, es.y);
+      enemy.x = es.x;
+      enemy.y = es.y;
       
-      // Only set texture if enemy wasn't already showing this type
       const textureKey = `enemy_${es.type}_sprite`;
-      if (!enemy.texture || enemy.texture.key !== textureKey) {
-        if (enemy.scene.textures.exists(textureKey)) {
-          enemy.setTexture(textureKey);
-        }
-      }
-      
-      if (enemy.health) {
-        enemy.health.setCurrent(es.health);
+      if (enemy.scene.textures.exists(textureKey)) {
+        enemy.setTexture(textureKey);
       }
     }
+    
+    // Deactivate excess enemies (if oldCount > newCount)
+    for (let i = newCount; i < oldCount && i < currentEnemies.length; i++) {
+      const enemy = currentEnemies[i];
+      enemy.setActive(false);
+      enemy.setVisible(false);
+    }
+    
+    // Remember count for next frame
+    this.activeEnemyCount = newCount;
   }
   
   isHostPlayer(): boolean {
