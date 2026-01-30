@@ -289,4 +289,9 @@ export class SpawnSystem {
   getElapsedTime(): number {
     return this.elapsedTime;
   }
+  
+  /** Set elapsed time (used by guest to sync timer from host) */
+  setElapsedTime(time: number): void {
+    this.elapsedTime = time;
+  }
 }

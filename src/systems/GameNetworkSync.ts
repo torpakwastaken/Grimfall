@@ -31,16 +31,12 @@ export class GameNetworkSync {
   
   // Sync timing
   private lastSyncTime: number = 0;
-  private syncInterval: number = 66; // Send state every 66ms (15 times/sec) - balance between smoothness and performance
+  private syncInterval: number = 66; // Send state every 66ms (15 times/sec)
   
   // Guest state
   private pendingState: GameStateSync | null = null;
   private partnerInput: LocalInput = { moveX: 0, moveY: 0, aimAngle: 0, firing: false };
   private hasReceivedPartnerInput: boolean = false;
-  
-  // Entity tracking for guest
-  private enemyMap: Map<string, Enemy> = new Map();
-  private tempEnemyIdSet: Set<string> = new Set(); // Reusable set to avoid allocations
   
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -104,26 +100,29 @@ export class GameNetworkSync {
     }));
     
     // Build enemy states (limit to prevent huge packets)
-    const activeEnemies = enemies.filter(e => e.active).slice(0, 30); // Reduced from 50 to 30
     const enemyStates: EnemyStateSync[] = [];
-    for (let i = 0; i < activeEnemies.length; i++) {
-      const e = activeEnemies[i];
+    let enemyCount = 0;
+    for (let i = 0; i < enemies.length && enemyCount < 30; i++) {
+      const e = enemies[i];
+      if (!e.active) continue;
       enemyStates.push({
-        id: e.enemyId || `e${i}`,
-        type: e.enemyData?.id || 's',
-        x: (e.x + 0.5) | 0, // Fast rounding
+        id: e.enemyId || `e${enemyCount}`,
+        type: e.enemyData?.id || 'swarmer', // Use full type name for texture lookup
+        x: (e.x + 0.5) | 0,
         y: (e.y + 0.5) | 0,
         health: (e.health?.current + 0.5) | 0 || 0
       });
+      enemyCount++;
     }
     
     const state: GameStateSync = {
       timestamp: now,
       players: playerStates,
       enemies: enemyStates,
-      projectiles: [], // Simplified - don't sync projectiles, let each client render their own
+      projectiles: [],
       wave,
-      score
+      score,
+      elapsedTime
     };
     
     network.sendGameState(state);
@@ -187,7 +186,7 @@ export class GameNetworkSync {
   
   /**
    * Apply received state to game entities (guest only)
-   * Heavily optimized to minimize CPU usage
+   * Ultra-optimized: no allocations, minimal work
    */
   applyState(
     state: GameStateSync,
@@ -196,6 +195,11 @@ export class GameNetworkSync {
     spawnSystem: any
   ): void {
     if (this.isHost) return;
+    
+    // Update elapsed time on spawn system for HUD
+    if (spawnSystem && state.elapsedTime !== undefined) {
+      spawnSystem.setElapsedTime(state.elapsedTime);
+    }
     
     // Apply player states (fast - only 2 players)
     const p0 = state.players[0];
@@ -214,56 +218,41 @@ export class GameNetworkSync {
       if (player1.health) player1.health.setCurrent(p1.health);
     }
     
-    // Build set of active enemy IDs from state (reuse set)
-    const stateEnemyIds = this.tempEnemyIdSet;
-    stateEnemyIds.clear();
-    const stateEnemyMap = new Map<string, EnemyStateSync>();
-    for (let i = 0; i < state.enemies.length; i++) {
-      const e = state.enemies[i];
-      stateEnemyIds.add(e.id);
-      stateEnemyMap.set(e.id, e);
-    }
-    
-    // Get all current enemies once
+    // === SIMPLIFIED ENEMY SYNC ===
+    // Just deactivate all enemies and reactivate based on state
+    // This is simpler and avoids complex ID tracking
     const currentEnemies = enemies.getChildren() as Enemy[];
-    const inactivePool: Enemy[] = [];
     
-    // Single pass: deactivate dead enemies, update existing, collect inactive
+    // Deactivate all enemies first
     for (let i = 0; i < currentEnemies.length; i++) {
       const enemy = currentEnemies[i];
-      const enemyId = enemy.enemyId;
-      
-      if (!enemy.active) {
-        inactivePool.push(enemy);
-        continue;
-      }
-      
-      if (!enemyId || !stateEnemyIds.has(enemyId)) {
-        // Enemy not in state - deactivate
+      if (enemy.active) {
         enemy.setActive(false);
         enemy.setVisible(false);
-        if (enemyId) this.enemyMap.delete(enemyId);
-        inactivePool.push(enemy);
-      } else {
-        // Update existing enemy position
-        const es = stateEnemyMap.get(enemyId)!;
-        enemy.x += (es.x - enemy.x) * 0.3;
-        enemy.y += (es.y - enemy.y) * 0.3;
-        if (enemy.health) enemy.health.setCurrent(es.health);
-        // Remove from state map so we don't spawn it
-        stateEnemyMap.delete(enemyId);
       }
     }
     
-    // Spawn only new enemies (ones left in stateEnemyMap)
-    let poolIdx = 0;
-    for (const [id, es] of stateEnemyMap) {
-      if (poolIdx >= inactivePool.length) break;
+    // Activate enemies from state (reusing pool objects by index)
+    const stateEnemies = state.enemies;
+    for (let i = 0; i < stateEnemies.length && i < currentEnemies.length; i++) {
+      const es = stateEnemies[i];
+      const enemy = currentEnemies[i];
       
-      const enemy = inactivePool[poolIdx++];
-      enemy.spawnSimple(es.type, es.x, es.y, es.health);
-      enemy.enemyId = id;
-      this.enemyMap.set(id, enemy);
+      enemy.setActive(true);
+      enemy.setVisible(true);
+      enemy.setPosition(es.x, es.y);
+      
+      // Only set texture if enemy wasn't already showing this type
+      const textureKey = `enemy_${es.type}_sprite`;
+      if (!enemy.texture || enemy.texture.key !== textureKey) {
+        if (enemy.scene.textures.exists(textureKey)) {
+          enemy.setTexture(textureKey);
+        }
+      }
+      
+      if (enemy.health) {
+        enemy.health.setCurrent(es.health);
+      }
     }
   }
   
@@ -285,6 +274,6 @@ export class GameNetworkSync {
   }
   
   destroy(): void {
-    this.enemyMap.clear();
+    // Cleanup if needed
   }
 }

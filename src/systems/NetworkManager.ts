@@ -40,6 +40,7 @@ export interface GameStateSync {
   projectiles: ProjectileStateSync[];
   wave: number;
   score: number;
+  elapsedTime: number;
 }
 
 export interface EnemyStateSync {

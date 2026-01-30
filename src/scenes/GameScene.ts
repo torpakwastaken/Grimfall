@@ -98,6 +98,12 @@ export class GameScene extends Phaser.Scene {
     
     // Initialize co-op VFX system
     this.coopVFXSystem = new CoopVFXSystem(this);
+    
+    // Pre-create enemy textures (so they're ready for network sync)
+    const enemyTypes = ['swarmer', 'shambler', 'shieldbearer', 'sniper'];
+    for (const type of enemyTypes) {
+      createEnemySprite(this, type, 30);
+    }
 
     // Create entity pools
     this.createPools();

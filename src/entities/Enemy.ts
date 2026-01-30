@@ -154,11 +154,11 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
     this.setPosition(x, y);
     
     // Only create texture if we don't have one for this type
-    const textureKey = `enemy_${type}`;
+    const textureKey = `enemy_${type}_sprite`;
     if (this.scene.textures.exists(textureKey)) {
       this.setTexture(textureKey);
     } else {
-      // Fallback - create basic texture once
+      // Create the texture on first use
       const spriteSize = 30;
       const key = createEnemySprite(this.scene, type, spriteSize);
       this.setTexture(key);
