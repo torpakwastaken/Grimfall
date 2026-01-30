@@ -118,10 +118,13 @@ export class GameScene extends Phaser.Scene {
     this.localPlayerIndex = this.networkSync.getLocalPlayerIndex();
     console.log(`[GameScene] Running as ${this.isHost ? 'HOST' : 'GUEST'}, controlling player ${this.localPlayerIndex}`);
     
-    // GUEST OPTIMIZATION: Disable physics entirely - guest just renders positions from host
+    // GUEST OPTIMIZATION: Disable physics, timers, and tweens entirely - guest just renders positions from host
     if (!this.isHost) {
       this.physics.world.pause();
-      console.log('[GameScene] Physics disabled on guest for performance');
+      // Pause Phaser's internal time/tween systems - they cause CPU drain on guest
+      this.time.paused = true;
+      this.tweens.pauseAll();
+      console.log('[GameScene] Physics, timers, and tweens disabled on guest for performance');
     }
     
     // Set up network control flags
@@ -466,12 +469,18 @@ export class GameScene extends Phaser.Scene {
     this.hud.notification.setText(text);
     this.hud.notification.setAlpha(1);
 
-    this.tweens.add({
-      targets: this.hud.notification,
-      alpha: 0,
-      duration: 2000,
-      delay: 1000
-    });
+    // Only animate on host - guest has tweens paused
+    if (this.isHost) {
+      this.tweens.add({
+        targets: this.hud.notification,
+        alpha: 0,
+        duration: 2000,
+        delay: 1000
+      });
+    } else {
+      // Guest: just hide after a simple timeout (timers are paused, so use manual fadeout)
+      // Actually, timers are paused, so we'll let it stay visible until next notification
+    }
   }
 
   private onSynergyActivated(data: any): void {
@@ -505,6 +514,10 @@ export class GameScene extends Phaser.Scene {
   update(time: number, delta: number): void {
     if (this.isPaused) return;
 
+    // CRITICAL: Clamp delta to prevent explosion after tab background
+    // Without this, delta can be 30000ms+ causing massive game state jumps
+    const clampedDelta = Math.min(delta, 100); // Max 100ms (10 FPS minimum)
+
     // Update performance manager with FPS (host only - guest doesn't need auto-scaling)
     if (this.isHost) {
       const fps = this.game.loop.actualFps;
@@ -528,7 +541,7 @@ export class GameScene extends Phaser.Scene {
               this.applyRemoteInput(player, partnerInput);
             }
           }
-          player.update(time, delta);
+          player.update(time, clampedDelta);
           
           const body = player.body as Phaser.Physics.Arcade.Body;
           if (body) {
@@ -540,7 +553,7 @@ export class GameScene extends Phaser.Scene {
       // Update enemies
       for (const enemy of enemyArray) {
         if (enemy.active) {
-          enemy.update(time, delta, playerArray);
+          enemy.update(time, clampedDelta, playerArray);
         }
       }
 
@@ -556,12 +569,12 @@ export class GameScene extends Phaser.Scene {
       const gemArray = this.xpGems.getChildren() as XPGem[];
       for (const gem of gemArray) {
         if (gem.active) {
-          gem.update(time, delta, playerArray);
+          gem.update(time, clampedDelta, playerArray);
         }
       }
 
       // Update systems (only host runs game logic)
-      this.spawnSystem.update(time, delta);
+      this.spawnSystem.update(time, clampedDelta);
       this.reviveSystem.update(time);
       
       // Send state to guest
@@ -601,8 +614,8 @@ export class GameScene extends Phaser.Scene {
     // Update systems (skip expensive ones on guest)
     if (this.isHost) {
       this.debugOverlay.update();
-      this.vfxSystem.update(time, delta);
-      this.coopVFXSystem.update(delta);
+      this.vfxSystem.update(time, clampedDelta);
+      this.coopVFXSystem.update(clampedDelta);
     }
 
     // Update HUD (throttled on guest - every 10 frames)

@@ -5,9 +5,11 @@ export class BuffContainer {
   private buffs: Map<string, BuffData> = new Map();
   private scene: Phaser.Scene;
   private timers: Map<string, Phaser.Time.TimerEvent> = new Map();
+  private isHost: boolean = true;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
+    this.isHost = scene.registry.get('isHost') ?? true;
   }
 
   addBuff(buff: BuffData): void {
@@ -18,8 +20,8 @@ export class BuffContainer {
 
     this.buffs.set(buff.id, buff);
 
-    // Set up timer to remove buff
-    if (buff.duration > 0) {
+    // Set up timer to remove buff (HOST ONLY - guest has timers paused anyway)
+    if (buff.duration > 0 && this.isHost) {
       const timer = this.scene.time.delayedCall(buff.duration, () => {
         this.removeBuff(buff.id);
       });

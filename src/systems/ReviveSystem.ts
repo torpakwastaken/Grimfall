@@ -6,16 +6,26 @@ export class ReviveSystem {
   private reviveTimers: Map<number, number> = new Map();
   private reviveWindow: number = 8000; // 8 seconds
   private gameOverDelay: number = 10000; // 10 seconds for both players dead
+  private isHost: boolean = true;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
+    this.isHost = scene.registry.get('isHost') ?? true;
     
-    // Listen for player death events
+    // Guest doesn't run revive logic - only host controls player state
+    if (!this.isHost) {
+      console.log('[ReviveSystem] Skipping setup on guest');
+      return;
+    }
+    
+    // Listen for player death events (HOST ONLY)
     this.scene.events.on('playerDied', this.onPlayerDied, this);
     this.scene.events.on('playerRevived', this.onPlayerRevived, this);
   }
 
   private onPlayerDied(playerId: number): void {
+    if (!this.isHost) return;
+    
     console.log(`Player ${playerId + 1} died`);
     
     // Start revive timer
@@ -30,6 +40,8 @@ export class ReviveSystem {
   }
 
   private onPlayerRevived(playerId: number): void {
+    if (!this.isHost) return;
+    
     console.log(`Player ${playerId + 1} revived`);
     
     // Clear revive timer
@@ -40,6 +52,9 @@ export class ReviveSystem {
   }
 
   update(time: number): void {
+    // GUEST: Skip all revive logic
+    if (!this.isHost) return;
+    
     // Auto-revive players after timer
     for (const [playerId, reviveTime] of this.reviveTimers) {
       if (time >= reviveTime) {
@@ -58,6 +73,8 @@ export class ReviveSystem {
   }
 
   private checkGameOver(): void {
+    if (!this.isHost) return;
+    
     const players = (this.scene as any).players.getChildren() as Player[];
     const alivePlayers = players.filter(p => !p.isDead);
     
