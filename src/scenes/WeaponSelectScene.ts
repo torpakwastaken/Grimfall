@@ -25,6 +25,9 @@ export class WeaponSelectScene extends Phaser.Scene {
   private partnerSelected: boolean = false;
   private partnerWeaponId: string = '';
   
+  // Guard against double game start
+  private gameStarted: boolean = false;
+  
   // Mode flags
   private isHost: boolean = true;
   private isSoloMode: boolean = false;
@@ -60,6 +63,7 @@ export class WeaponSelectScene extends Phaser.Scene {
     this.partnerSelected = false;
     this.partnerWeaponId = '';
     this.weaponCards = []; // Reset weapon cards array
+    this.gameStarted = false; // Reset game start guard
     
     this.cameras.main.setBackgroundColor(0x0a0a1a);
     
@@ -526,6 +530,10 @@ export class WeaponSelectScene extends Phaser.Scene {
   }
   
   private startGame(): void {
+    // Prevent double-start
+    if (this.gameStarted) return;
+    this.gameStarted = true;
+    
     // Store selections for GameScene
     // Format: local player is always stored as their role
     if (this.playerId === 'player1') {
