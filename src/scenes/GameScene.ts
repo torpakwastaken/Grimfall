@@ -118,13 +118,11 @@ export class GameScene extends Phaser.Scene {
     this.localPlayerIndex = this.networkSync.getLocalPlayerIndex();
     console.log(`[GameScene] Running as ${this.isHost ? 'HOST' : 'GUEST'}, controlling player ${this.localPlayerIndex}`);
     
-    // GUEST OPTIMIZATION: Disable physics, timers, and tweens entirely - guest just renders positions from host
+    // GUEST OPTIMIZATION: Disable physics - guest just renders positions from host
+    // NOTE: Do NOT pause scene.time or tweens - it breaks initialization and rendering
     if (!this.isHost) {
       this.physics.world.pause();
-      // Pause Phaser's internal time/tween systems - they cause CPU drain on guest
-      this.time.paused = true;
-      this.tweens.pauseAll();
-      console.log('[GameScene] Physics, timers, and tweens disabled on guest for performance');
+      console.log('[GameScene] Physics disabled on guest for performance');
     }
     
     // Set up network control flags
@@ -203,19 +201,18 @@ export class GameScene extends Phaser.Scene {
       this.enemies.add(enemy, true);
     }
 
-    // Projectiles pool - only host needs these
+    // Projectiles pool - guest needs a small pool for display
     this.projectiles = this.add.group({
       classType: Projectile,
-      maxSize: isHost ? profile.maxProjectiles : 10, // Guest needs minimal pool
+      maxSize: isHost ? profile.maxProjectiles : 30, // Guest needs pool for synced projectiles
       runChildUpdate: false  // We manually call update on host only
     });
 
-    if (isHost) {
-      const projectilePoolSize = Math.min(1000, profile.maxProjectiles);
-      for (let i = 0; i < projectilePoolSize; i++) {
-        const projectile = new Projectile(this);
-        this.projectiles.add(projectile, true);
-      }
+    // Create projectile pool (smaller on guest)
+    const projectilePoolSize = isHost ? Math.min(1000, profile.maxProjectiles) : 30;
+    for (let i = 0; i < projectilePoolSize; i++) {
+      const projectile = new Projectile(this);
+      this.projectiles.add(projectile, true);
     }
 
     // XP gems pool - only host needs these
@@ -577,10 +574,11 @@ export class GameScene extends Phaser.Scene {
       this.spawnSystem.update(time, clampedDelta);
       this.reviveSystem.update(time);
       
-      // Send state to guest
+      // Send state to guest (include projectiles) - reuse projectileArray from above
       this.networkSync.sendState(
         playerArray,
         enemyArray,
+        projectileArray,
         this.spawnSystem.getCurrentWave(),
         0, // Score tracking not implemented yet
         this.spawnSystem.getElapsedTime()
@@ -595,10 +593,10 @@ export class GameScene extends Phaser.Scene {
         this.networkSync.sendInput(playerArray[0]);
       }
       
-      // Apply state received from host
+      // Apply state received from host (includes projectiles)
       const state = this.networkSync.getPendingState();
       if (state) {
-        this.networkSync.applyState(state, playerArray, this.enemies, this.spawnSystem);
+        this.networkSync.applyState(state, playerArray, this.enemies, this.projectiles, this.spawnSystem);
       }
       
       // Update HP bars only every 5 frames (not every frame)

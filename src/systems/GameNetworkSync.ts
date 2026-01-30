@@ -13,9 +13,10 @@
  */
 
 import Phaser from 'phaser';
-import { network, PlayerId, PlayerInput, GameStateSync, PlayerState, EnemyStateSync } from './NetworkManager';
+import { network, PlayerId, PlayerInput, GameStateSync, PlayerState, EnemyStateSync, ProjectileStateSync } from './NetworkManager';
 import { Player } from '@/entities/Player';
 import { Enemy } from '@/entities/Enemy';
+import { Projectile } from '@/entities/Projectile';
 
 export interface LocalInput {
   moveX: number;
@@ -40,6 +41,7 @@ export class GameNetworkSync {
   
   // Track which enemies are currently active on guest (by pool index)
   private activeEnemyCount: number = 0;
+  private activeProjectileCount: number = 0;
   
   // Input throttling - only send when changed
   private lastSentInput: string = '';
@@ -82,6 +84,7 @@ export class GameNetworkSync {
   sendState(
     players: Player[],
     enemies: Enemy[],
+    projectiles: Projectile[],
     wave: number,
     score: number,
     elapsedTime: number
@@ -121,11 +124,28 @@ export class GameNetworkSync {
       enemyCount++;
     }
     
+    // Build projectile states (limit to 20 for performance)
+    const projectileStates: ProjectileStateSync[] = [];
+    let projCount = 0;
+    for (let i = 0; i < projectiles.length && projCount < 20; i++) {
+      const p = projectiles[i];
+      if (!p.active) continue;
+      const body = p.body as Phaser.Physics.Arcade.Body;
+      projectileStates.push({
+        id: `p${projCount}`,
+        ownerId: p.ownerId === 0 ? 'player1' : 'player2',
+        x: (p.x + 0.5) | 0,
+        y: (p.y + 0.5) | 0,
+        angle: body ? Math.atan2(body.velocity.y, body.velocity.x) : 0
+      });
+      projCount++;
+    }
+    
     const state: GameStateSync = {
       timestamp: now,
       players: playerStates,
       enemies: enemyStates,
-      projectiles: [],
+      projectiles: projectileStates,
       wave,
       score,
       elapsedTime
@@ -206,6 +226,7 @@ export class GameNetworkSync {
     state: GameStateSync,
     players: Player[],
     enemies: Phaser.GameObjects.Group,
+    projectiles: Phaser.GameObjects.Group,
     spawnSystem: any
   ): void {
     if (this.isHost) return;
@@ -281,6 +302,51 @@ export class GameNetworkSync {
     
     // Remember count for next frame
     this.activeEnemyCount = newCount;
+    
+    // === PROJECTILE SYNC ===
+    const currentProjectiles = projectiles.getChildren() as Projectile[];
+    const stateProjectiles = state.projectiles || [];
+    const newProjCount = stateProjectiles.length;
+    const oldProjCount = this.activeProjectileCount;
+    
+    // Update existing active projectiles
+    const updateProjCount = Math.min(oldProjCount, newProjCount);
+    for (let i = 0; i < updateProjCount; i++) {
+      const ps = stateProjectiles[i];
+      const proj = currentProjectiles[i];
+      if (!proj) continue;
+      
+      proj.x = ps.x;
+      proj.y = ps.y;
+      proj.setRotation(ps.angle);
+    }
+    
+    // Activate new projectiles
+    for (let i = oldProjCount; i < newProjCount && i < currentProjectiles.length; i++) {
+      const ps = stateProjectiles[i];
+      const proj = currentProjectiles[i];
+      if (!proj) continue;
+      
+      proj.setActive(true);
+      proj.setVisible(true);
+      proj.x = ps.x;
+      proj.y = ps.y;
+      proj.setRotation(ps.angle);
+      // Set color based on owner
+      const ownerId = ps.ownerId === 'player1' ? 0 : 1;
+      proj.setTint(ownerId === 0 ? 0xff6666 : 0x6666ff);
+    }
+    
+    // Deactivate excess projectiles
+    for (let i = newProjCount; i < oldProjCount && i < currentProjectiles.length; i++) {
+      const proj = currentProjectiles[i];
+      if (proj) {
+        proj.setActive(false);
+        proj.setVisible(false);
+      }
+    }
+    
+    this.activeProjectileCount = newProjCount;
   }
   
   isHostPlayer(): boolean {
