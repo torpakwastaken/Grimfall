@@ -431,6 +431,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.hpBar.fillStyle(color);
     this.hpBar.fillRect(x, y, barWidth * hpPercentage, barHeight);
   }
+  
+  /** Public method for guest to update HP bar without full update */
+  updateHPBarPublic(): void {
+    this.updateHPBar();
+    this.directionIndicator.setPosition(this.x, this.y - 10);
+  }
 
   destroy(fromScene?: boolean): void {
     this.keys.clear();

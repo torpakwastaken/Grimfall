@@ -54,6 +54,7 @@ export class GameScene extends Phaser.Scene {
 
   // Game state
   private isPaused: boolean = false;
+  private frameCount: number = 0; // For throttling updates on guest
 
   constructor() {
     super('GameScene');
@@ -497,9 +498,11 @@ export class GameScene extends Phaser.Scene {
   update(time: number, delta: number): void {
     if (this.isPaused) return;
 
-    // Update performance manager with FPS
-    const fps = this.game.loop.actualFps;
-    getPerformanceManager().update(fps, time);
+    // Update performance manager with FPS (host only - guest doesn't need auto-scaling)
+    if (this.isHost) {
+      const fps = this.game.loop.actualFps;
+      getPerformanceManager().update(fps, time);
+    }
 
     const playerArray = this.players.getChildren() as Player[];
     const enemyArray = this.enemies.getChildren() as Enemy[];
@@ -575,6 +578,13 @@ export class GameScene extends Phaser.Scene {
       const state = this.networkSync.getPendingState();
       if (state) {
         this.networkSync.applyState(state, playerArray, this.enemies, this.spawnSystem);
+        
+        // Update player HP bars after applying state (they follow player position)
+        for (const player of playerArray) {
+          if (player.active) {
+            player.updateHPBarPublic();
+          }
+        }
       }
       
       // Skip animations on guest - too expensive
@@ -587,8 +597,9 @@ export class GameScene extends Phaser.Scene {
       this.coopVFXSystem.update(delta);
     }
 
-    // Update HUD (throttled on guest)
-    if (this.isHost || time % 3 === 0) {
+    // Update HUD (throttled on guest - every 10 frames)
+    this.frameCount++;
+    if (this.isHost || this.frameCount % 10 === 0) {
       this.updateHUD();
     }
 
