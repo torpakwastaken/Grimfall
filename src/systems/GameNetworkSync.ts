@@ -104,14 +104,18 @@ export class GameNetworkSync {
     }));
     
     // Build enemy states (limit to prevent huge packets)
-    const activeEnemies = enemies.filter(e => e.active).slice(0, 50);
-    const enemyStates: EnemyStateSync[] = activeEnemies.map(e => ({
-      id: e.enemyId || `enemy_${Math.round(e.x)}_${Math.round(e.y)}`,
-      type: e.enemyData?.id || 'swarmer',
-      x: Math.round(e.x),
-      y: Math.round(e.y),
-      health: Math.round(e.health?.current || 0)
-    }));
+    const activeEnemies = enemies.filter(e => e.active).slice(0, 30); // Reduced from 50 to 30
+    const enemyStates: EnemyStateSync[] = [];
+    for (let i = 0; i < activeEnemies.length; i++) {
+      const e = activeEnemies[i];
+      enemyStates.push({
+        id: e.enemyId || `e${i}`,
+        type: e.enemyData?.id || 's',
+        x: (e.x + 0.5) | 0, // Fast rounding
+        y: (e.y + 0.5) | 0,
+        health: (e.health?.current + 0.5) | 0 || 0
+      });
+    }
     
     const state: GameStateSync = {
       timestamp: now,
@@ -183,7 +187,7 @@ export class GameNetworkSync {
   
   /**
    * Apply received state to game entities (guest only)
-   * Optimized to reduce CPU usage
+   * Heavily optimized to minimize CPU usage
    */
   applyState(
     state: GameStateSync,
@@ -194,66 +198,72 @@ export class GameNetworkSync {
     if (this.isHost) return;
     
     // Apply player states (fast - only 2 players)
-    for (let i = 0; i < state.players.length && i < players.length; i++) {
-      const ps = state.players[i];
-      const player = players[i];
-      if (player) {
-        // Interpolate position for smooth movement
-        player.x += (ps.x - player.x) * 0.3;
-        player.y += (ps.y - player.y) * 0.3;
-        
-        // Set health
-        if (player.health) {
-          player.health.setCurrent(ps.health);
-        }
-      }
+    const p0 = state.players[0];
+    const p1 = state.players[1];
+    const player0 = players[0];
+    const player1 = players[1];
+    
+    if (player0 && p0) {
+      player0.x += (p0.x - player0.x) * 0.3;
+      player0.y += (p0.y - player0.y) * 0.3;
+      if (player0.health) player0.health.setCurrent(p0.health);
+    }
+    if (player1 && p1) {
+      player1.x += (p1.x - player1.x) * 0.3;
+      player1.y += (p1.y - player1.y) * 0.3;
+      if (player1.health) player1.health.setCurrent(p1.health);
     }
     
     // Build set of active enemy IDs from state (reuse set)
     const stateEnemyIds = this.tempEnemyIdSet;
     stateEnemyIds.clear();
-    for (const e of state.enemies) {
+    const stateEnemyMap = new Map<string, EnemyStateSync>();
+    for (let i = 0; i < state.enemies.length; i++) {
+      const e = state.enemies[i];
       stateEnemyIds.add(e.id);
+      stateEnemyMap.set(e.id, e);
     }
     
-    // Apply enemy states - use map for O(1) lookups
+    // Get all current enemies once
     const currentEnemies = enemies.getChildren() as Enemy[];
+    const inactivePool: Enemy[] = [];
     
-    // Deactivate enemies not in state (iterate only once)
-    for (const enemy of currentEnemies) {
-      if (enemy.active && enemy.enemyId && !stateEnemyIds.has(enemy.enemyId)) {
+    // Single pass: deactivate dead enemies, update existing, collect inactive
+    for (let i = 0; i < currentEnemies.length; i++) {
+      const enemy = currentEnemies[i];
+      const enemyId = enemy.enemyId;
+      
+      if (!enemy.active) {
+        inactivePool.push(enemy);
+        continue;
+      }
+      
+      if (!enemyId || !stateEnemyIds.has(enemyId)) {
+        // Enemy not in state - deactivate
         enemy.setActive(false);
         enemy.setVisible(false);
-        this.enemyMap.delete(enemy.enemyId);
+        if (enemyId) this.enemyMap.delete(enemyId);
+        inactivePool.push(enemy);
+      } else {
+        // Update existing enemy position
+        const es = stateEnemyMap.get(enemyId)!;
+        enemy.x += (es.x - enemy.x) * 0.3;
+        enemy.y += (es.y - enemy.y) * 0.3;
+        if (enemy.health) enemy.health.setCurrent(es.health);
+        // Remove from state map so we don't spawn it
+        stateEnemyMap.delete(enemyId);
       }
     }
     
-    // Update or spawn enemies from state
-    for (const es of state.enemies) {
-      let enemy = this.enemyMap.get(es.id);
+    // Spawn only new enemies (ones left in stateEnemyMap)
+    let poolIdx = 0;
+    for (const [id, es] of stateEnemyMap) {
+      if (poolIdx >= inactivePool.length) break;
       
-      if (!enemy || !enemy.active) {
-        // Find inactive enemy to reuse (limit search)
-        enemy = undefined;
-        for (const e of currentEnemies) {
-          if (!e.active) {
-            enemy = e;
-            break;
-          }
-        }
-        if (enemy) {
-          enemy.spawnSimple(es.type, es.x, es.y, es.health);
-          enemy.enemyId = es.id;
-          this.enemyMap.set(es.id, enemy);
-        }
-      } else {
-        // Update existing enemy position with interpolation
-        enemy.x += (es.x - enemy.x) * 0.3;
-        enemy.y += (es.y - enemy.y) * 0.3;
-        if (enemy.health) {
-          enemy.health.setCurrent(es.health);
-        }
-      }
+      const enemy = inactivePool[poolIdx++];
+      enemy.spawnSimple(es.type, es.x, es.y, es.health);
+      enemy.enemyId = id;
+      this.enemyMap.set(id, enemy);
     }
   }
   

@@ -549,12 +549,10 @@ export class GameScene extends Phaser.Scene {
       );
       
     } else {
-      // GUEST: Send input to host, then apply received state
+      // GUEST: Minimal update - just send input and apply state
       
       // Guest reads WASD keys directly and sends to host for P2 control
-      // (P1's keys are WASD, so we use P1's getInputState but it controls P2 on host)
       if (playerArray[0]) {
-        // Read from P1's keys (WASD) since that's what guest uses
         this.networkSync.sendInput(playerArray[0]);
       }
       
@@ -564,24 +562,20 @@ export class GameScene extends Phaser.Scene {
         this.networkSync.applyState(state, playerArray, this.enemies, this.spawnSystem);
       }
       
-      // Still update animations locally for smoothness
-      for (const player of playerArray) {
-        if (player.active) {
-          const body = player.body as Phaser.Physics.Arcade.Body;
-          if (body) {
-            this.animationSystem.applyMovementSquash(player, body.velocity.x, body.velocity.y);
-          }
-        }
-      }
+      // Skip animations on guest - too expensive
     }
 
-    // Both host and guest update these
-    this.debugOverlay.update();
-    this.vfxSystem.update(time, delta);
-    this.coopVFXSystem.update(delta);
+    // Update systems (skip expensive ones on guest)
+    if (this.isHost) {
+      this.debugOverlay.update();
+      this.vfxSystem.update(time, delta);
+      this.coopVFXSystem.update(delta);
+    }
 
-    // Update HUD
-    this.updateHUD();
+    // Update HUD (throttled on guest)
+    if (this.isHost || time % 3 === 0) {
+      this.updateHUD();
+    }
 
     // Update camera to follow midpoint
     this.updateCameraTarget(playerArray);
