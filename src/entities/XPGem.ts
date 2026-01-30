@@ -10,6 +10,7 @@ export class XPGem extends Phaser.Physics.Arcade.Sprite implements PooledObject 
   private magnetSpeed: number = 300;
   private isMagnetized: boolean = false;
   private targetPlayer: any = null;
+  private isHost: boolean = true;
 
   constructor(scene: Phaser.Scene) {
     // Create texture first before calling super
@@ -25,6 +26,9 @@ export class XPGem extends Phaser.Physics.Arcade.Sprite implements PooledObject 
     super(scene, 0, 0, textureKey);
     scene.add.existing(this);
     scene.physics.add.existing(this);
+    
+    // Store host flag - XP gems only run logic on host
+    this.isHost = scene.registry.get('isHost') ?? true;
   }
 
   activate(x: number, y: number, value: number): void {
@@ -46,14 +50,16 @@ export class XPGem extends Phaser.Physics.Arcade.Sprite implements PooledObject 
     const color = value > 10 ? 0xffff00 : (value > 5 ? 0x00ff00 : 0x00ffff);
     this.setTint(color);
     
-    // Initial pop animation
-    this.setScale(0.5);
-    this.scene.tweens.add({
-      targets: this,
-      scale: size / 5,
-      duration: 200,
-      ease: 'Back.easeOut'
-    });
+    // Initial pop animation (HOST ONLY to avoid tween accumulation)
+    if (this.isHost) {
+      this.setScale(0.5);
+      this.scene.tweens.add({
+        targets: this,
+        scale: size / 5,
+        duration: 200,
+        ease: 'Back.easeOut'
+      });
+    }
   }
 
   reset(): void {
@@ -108,16 +114,21 @@ export class XPGem extends Phaser.Physics.Arcade.Sprite implements PooledObject 
   }
 
   collect(): void {
-    // Collection animation
-    this.scene.tweens.add({
-      targets: this,
-      scale: 1.5,
-      alpha: 0,
-      duration: 150,
-      ease: 'Power2',
-      onComplete: () => {
-        this.deactivate();
-      }
-    });
+    // Collection animation (HOST ONLY to avoid tween accumulation)
+    if (this.isHost) {
+      this.scene.tweens.add({
+        targets: this,
+        scale: 1.5,
+        alpha: 0,
+        duration: 150,
+        ease: 'Power2',
+        onComplete: () => {
+          this.deactivate();
+        }
+      });
+    } else {
+      // Guest: Just deactivate immediately
+      this.deactivate();
+    }
   }
 }

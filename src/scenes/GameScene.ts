@@ -376,20 +376,27 @@ export class GameScene extends Phaser.Scene {
   }
 
   private setupEventListeners(): void {
-    this.events.on('createProjectile', this.createProjectile, this);
-    this.events.on('dropXP', this.dropXP, this);
-    this.events.on('addXP', (amount: number) => this.upgradeSystem.addXP(amount), this);
-    this.events.on('enemyKilled', (data: any) => this.spawnSystem.onEnemyKilled(data), this);
+    // === CRITICAL: GAMEPLAY EVENTS - HOST ONLY ===
+    // These events modify game state and must NEVER run on guest
+    if (this.isHost) {
+      this.events.on('createProjectile', this.createProjectile, this);
+      this.events.on('dropXP', this.dropXP, this);
+      this.events.on('addXP', (amount: number) => this.upgradeSystem.addXP(amount), this);
+      this.events.on('enemyKilled', (data: any) => this.spawnSystem.onEnemyKilled(data), this);
+      
+      // Co-op VFX events that create objects - HOST ONLY
+      this.events.on('syncKill', this.onSyncKill, this);
+      this.events.on('playerSaved', this.onPlayerSaved, this);
+      this.events.on('playerRevived', this.onPlayerRevived, this);
+      this.events.on('sharedBuff', this.onSharedBuff, this);
+      this.events.on('synergyActivated', this.onSynergyActivated, this);
+    }
+    
+    // === UI EVENTS - BOTH HOST AND GUEST ===
+    // These only update display, safe on both
     this.events.on('xpChanged', this.onXPChanged, this);
     this.events.on('levelUp', this.onLevelUp, this);
     this.events.on('showNotification', this.showNotification, this);
-    this.events.on('synergyActivated', this.onSynergyActivated, this);
-    
-    // Co-op VFX events
-    this.events.on('syncKill', this.onSyncKill, this);
-    this.events.on('playerSaved', this.onPlayerSaved, this);
-    this.events.on('playerRevived', this.onPlayerRevived, this);
-    this.events.on('sharedBuff', this.onSharedBuff, this);
 
     // Pause game with ESC key
     this.input.keyboard?.on('keydown-ESC', () => {
@@ -624,8 +631,10 @@ export class GameScene extends Phaser.Scene {
       }
       
       // Send input to host (throttled inside sendInput)
-      if (playerArray[0]) {
-        this.networkSync.sendInput(playerArray[0]);
+      // CRITICAL FIX: Guest sends input from playerArray[1] (their player), NOT playerArray[0]!
+      const guestPlayerForInput = playerArray[1];
+      if (guestPlayerForInput) {
+        this.networkSync.sendInput(guestPlayerForInput);
       }
       
       // Apply state received from host (reconcile with server state)

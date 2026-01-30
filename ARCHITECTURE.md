@@ -560,3 +560,192 @@ Key events already logged:
 ---
 
 **Ready to extend?** Pick a system, read the code, and start building! 🚀
+
+---
+
+## 🌐 NETWORK MULTIPLAYER ARCHITECTURE
+
+### Host-Authoritative Model
+
+The game uses a **strict host-authoritative architecture** where the HOST owns all game state and the GUEST is a render-only client.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         HOST (Player 1)                         │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ OWNS:                                                      │  │
+│  │ • Time progression (game timer, delta accumulation)       │  │
+│  │ • Physics simulation (all collisions, movement)           │  │
+│  │ • Enemy AI (pathfinding, targeting, attacks)              │  │
+│  │ • Damage calculation (crits, synergies, modifiers)        │  │
+│  │ • XP/Leveling (shared pool, level-up triggers)            │  │
+│  │ • Entity lifecycle (spawn, death, deactivation)           │  │
+│  │ • Upgrade generation and application                       │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│                              │                                    │
+│                    Sends: Game State (30Hz)                       │
+│                              ↓                                    │
+└─────────────────────────────────────────────────────────────────┘
+                               ↓
+                    ┌─────────────────────┐
+                    │   WebSocket Relay    │
+                    │   (Render.com)       │
+                    └─────────────────────┘
+                               ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                        GUEST (Player 2)                          │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ OWNS:                                                      │  │
+│  │ • Input capture (local keyboard state)                    │  │
+│  │ • Local movement prediction (immediate response)          │  │
+│  │ • HUD/UI updates (display only)                           │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ RECEIVES & RENDERS:                                        │  │
+│  │ • Player positions (interpolated)                          │  │
+│  │ • Enemy positions (interpolated)                           │  │
+│  │ • Projectile positions                                     │  │
+│  │ • Health values (for HP bars)                              │  │
+│  │ • Wave number, timer                                       │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ NEVER DOES:                                                │  │
+│  │ ✗ Create projectiles                                       │  │
+│  │ ✗ Spawn/destroy enemies                                    │  │
+│  │ ✗ Apply damage                                             │  │
+│  │ ✗ Add XP                                                   │  │
+│  │ ✗ Emit gameplay events                                     │  │
+│  │ ✗ Run timers/tweens that affect game state                │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow
+
+```
+HOST → GUEST (30Hz):
+┌─────────────────────────────────────────────────┐
+│ GameStateSync {                                 │
+│   timestamp: number,                            │
+│   players: [                                    │
+│     { id, x, y, health, velocityX, velocityY }, │
+│     { id, x, y, health, velocityX, velocityY }  │
+│   ],                                            │
+│   enemies: [                                    │
+│     { id, type, x, y, health },                │
+│     ...up to 30 enemies                         │
+│   ],                                            │
+│   projectiles: [                                │
+│     { id, ownerId, x, y, angle },              │
+│     ...up to 20 projectiles                     │
+│   ],                                            │
+│   wave: number,                                 │
+│   elapsedTime: number                           │
+│ }                                               │
+└─────────────────────────────────────────────────┘
+
+GUEST → HOST (on change):
+┌─────────────────────────────────────────────────┐
+│ PlayerInput {                                   │
+│   timestamp: number,                            │
+│   moveX: -1 | 0 | 1,                           │
+│   moveY: -1 | 0 | 1,                           │
+│   aimAngle: number,                            │
+│   firing: boolean,                              │
+│   specialAbility: boolean                       │
+│ }                                               │
+└─────────────────────────────────────────────────┘
+```
+
+### Guest Local Prediction
+
+To eliminate "resistance" feeling, guest applies local movement prediction:
+
+```typescript
+// GameScene.ts - GUEST update loop
+const guestPlayer = playerArray[1];  // Guest controls Player 2
+const input = guestPlayer.getInputState();
+const speed = guestPlayer.stats.moveSpeed;
+
+// Apply movement locally (instant response)
+guestPlayer.x += vx * (delta / 1000);
+guestPlayer.y += vy * (delta / 1000);
+
+// Then reconcile with server state
+if (distanceFromServer > 50) {
+  // Major desync - snap to server position
+  guestPlayer.x = serverX;
+  guestPlayer.y = serverY;
+} else {
+  // Minor drift - gentle correction
+  guestPlayer.x += (serverX - guestPlayer.x) * 0.15;
+  guestPlayer.y += (serverY - guestPlayer.y) * 0.15;
+}
+```
+
+### Authority Guards
+
+Every class that can execute game logic has an `isHost` flag:
+
+```typescript
+// In constructor
+this.isHost = scene.registry.get('isHost') ?? true;
+
+// Guard all gameplay-affecting code
+private onDeath(): void {
+  if (!this.isHost) return;  // ← CRITICAL GUARD
+  
+  this.scene.events.emit('enemyKilled', { ... });
+  this.scene.events.emit('dropXP', ...);
+}
+
+// Guard all timers/tweens
+takeDamage(amount: number): void {
+  this.setTint(0xff0000);
+  if (this.isHost) {  // ← Only host creates timer
+    this.scene.time.delayedCall(100, () => this.clearTint());
+  }
+}
+```
+
+### Event System Authority
+
+Gameplay events are registered **HOST ONLY**:
+
+```typescript
+private setupEventListeners(): void {
+  // === GAMEPLAY EVENTS - HOST ONLY ===
+  if (this.isHost) {
+    this.events.on('createProjectile', this.createProjectile, this);
+    this.events.on('dropXP', this.dropXP, this);
+    this.events.on('addXP', (amount) => this.upgradeSystem.addXP(amount));
+    this.events.on('enemyKilled', (data) => this.spawnSystem.onEnemyKilled(data));
+  }
+  
+  // === UI EVENTS - BOTH ===
+  this.events.on('xpChanged', this.onXPChanged, this);
+  this.events.on('levelUp', this.onLevelUp, this);
+}
+```
+
+### Troubleshooting Multiplayer Issues
+
+| Symptom | Likely Cause | Fix |
+|---------|--------------|-----|
+| Movement feels "sticky" | Guest sending wrong player's input | Check `sendInput()` uses correct player index |
+| Enemies teleporting | Guest running death logic | Add `if (!this.isHost) return` to `onDeath()` |
+| Orphaned HP bars | Guest creating HP bars, host deactivates enemy | Clear HP bar in `deactivate()` on guest |
+| Low FPS on guest | Events firing on both, creating duplicate objects | Guard event listeners with `if (this.isHost)` |
+| Desync over time | Timers/tweens accumulating on guest | Guard all `delayedCall` and `tweens.add` with `isHost` |
+
+### Testing Checklist
+
+Before shipping, verify:
+- [ ] Guest can tab out and return without desync
+- [ ] No teleporting enemies
+- [ ] No orphaned HP bars on screen
+- [ ] Movement feels instant and smooth on both clients
+- [ ] FPS stable on both machines (60 FPS target)
+- [ ] No console warnings or 404 errors
+- [ ] Guest cannot influence game state (try modifying guest code)
+

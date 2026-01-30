@@ -5,9 +5,11 @@ import { Projectile } from '@/entities/Projectile';
 
 export class CombatSystem {
   private scene: Phaser.Scene;
+  private isHost: boolean = true;
   
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
+    this.isHost = scene.registry.get('isHost') ?? true;
   }
 
   setupCollisions(
@@ -16,6 +18,13 @@ export class CombatSystem {
     projectiles: Phaser.GameObjects.Group,
     xpGems: Phaser.GameObjects.Group
   ): void {
+    // GUEST: Skip collision setup - physics is paused on guest anyway
+    // but this prevents any accidental callback execution
+    if (!this.isHost) {
+      console.log('[CombatSystem] Skipping collision setup on guest');
+      return;
+    }
+    
     // Player projectiles hit enemies
     this.scene.physics.add.overlap(
       projectiles,

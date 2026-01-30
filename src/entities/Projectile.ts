@@ -14,6 +14,7 @@ export class Projectile extends Phaser.Physics.Arcade.Sprite implements PooledOb
   private lifetime: number = 3000; // 3 seconds
   private spawnTime: number = 0;
   private velocity: Phaser.Math.Vector2 = new Phaser.Math.Vector2();
+  private isHost: boolean = true;
 
   constructor(scene: Phaser.Scene) {
     // Create texture first before calling super
@@ -31,6 +32,9 @@ export class Projectile extends Phaser.Physics.Arcade.Sprite implements PooledOb
     this.setVisible(false);
     scene.add.existing(this);
     scene.physics.add.existing(this);
+    
+    // Store host flag
+    this.isHost = scene.registry.get('isHost') ?? true;
   }
 
   activate(data: {
@@ -139,6 +143,9 @@ export class Projectile extends Phaser.Physics.Arcade.Sprite implements PooledOb
   }
 
   createHitEffect(): void {
+    // GUEST: Skip particle effects to avoid object accumulation
+    if (!this.isHost) return;
+    
     const particles = this.scene.add.particles(this.x, this.y, 'particle', {
       speed: { min: 50, max: 100 },
       scale: { start: 0.5, end: 0 },

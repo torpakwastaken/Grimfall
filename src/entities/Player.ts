@@ -56,6 +56,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   // Network multiplayer flags
   public isNetworkControlled: boolean = false; // If true, skip local input (controlled by network)
   private remoteFiring: boolean = false; // Remote player's firing state
+  private isHost: boolean = true; // Only host runs gameplay logic
 
   // Upgrades
   public hasMarkerRounds: boolean = false;
@@ -133,6 +134,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       body.setCollideWorldBounds(true);
       body.setBounce(0.2, 0.2);
     }
+    
+    // Store host flag - players only run gameplay logic on host
+    this.isHost = scene.registry.get('isHost') ?? true;
   }
 
   update(time: number, delta: number): void {
@@ -282,15 +286,20 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.health.damage(amount);
     this.stats.currentHp = this.health.current;
 
-    // Visual feedback
+    // Visual feedback (HOST ONLY for timer to avoid accumulation on guest)
     this.scene.cameras.main.shake(100, 0.005);
     this.setTint(0xff0000);
-    this.scene.time.delayedCall(100, () => {
-      this.clearTint();
-    });
+    if (this.isHost) {
+      this.scene.time.delayedCall(100, () => {
+        this.clearTint();
+      });
+    }
   }
 
   private onDeath(): void {
+    // GUEST: Skip death event emission - host controls player lifecycle
+    if (!this.isHost) return;
+    
     this.isDead = true;
     this.reviveTime = this.scene.time.now + 8000; // 8 second revive timer
     this.setAlpha(0.3);
@@ -317,16 +326,21 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.invulnerable = true;
     this.invulnerableUntil = this.scene.time.now + 3000;
     
-    // Visual feedback
-    this.scene.tweens.add({
-      targets: this,
-      alpha: { from: 0.5, to: 1 },
-      duration: 200,
-      repeat: 15,
-      yoyo: true
-    });
+    // Visual feedback (HOST ONLY for tween to avoid accumulation on guest)
+    if (this.isHost) {
+      this.scene.tweens.add({
+        targets: this,
+        alpha: { from: 0.5, to: 1 },
+        duration: 200,
+        repeat: 15,
+        yoyo: true
+      });
+    }
 
-    this.scene.events.emit('playerRevived', this.playerId);
+    // GUEST: Skip event emission - host controls player lifecycle
+    if (this.isHost) {
+      this.scene.events.emit('playerRevived', this.playerId);
+    }
   }
 
   addXP(amount: number): void {

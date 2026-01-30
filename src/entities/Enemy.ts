@@ -12,6 +12,9 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
   // Network sync properties
   public enemyId: string = '';
   
+  // Authority flag - only host runs enemy logic
+  private isHost: boolean = true;
+  
   private bodyShape!: Phaser.GameObjects.Shape;
   private hpBar!: Phaser.GameObjects.Graphics;
   private target: { x: number; y: number } | null = null;
@@ -44,6 +47,9 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
     }
     super(scene, 0, 0, textureKey);
     scene.add.existing(this);
+    
+    // Store host flag - enemies only run game logic on host
+    this.isHost = scene.registry.get('isHost') ?? true;
   }
 
   activate(data: EnemyData, x: number, y: number): void {
@@ -516,11 +522,13 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
 
     const actualDamage = this.health.damage(finalDamage);
     
-    // Visual feedback - show state colors
+    // Visual feedback - show state colors (HOST ONLY for timer)
     this.setTint(0xff0000);
-    this.scene.time.delayedCall(100, () => {
-      this.updateStateTint();
-    });
+    if (this.isHost) {
+      this.scene.time.delayedCall(100, () => {
+        this.updateStateTint();
+      });
+    }
 
     return actualDamage;
   }
@@ -529,10 +537,13 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
   
   /** Breaker applies BROKEN state - enemies take 2.5x from Amplifier */
   applyBroken(duration: number): void {
+    // GUEST: Skip state changes - host controls all enemy state
+    if (!this.isHost) return;
+    
     this.brokenUntil = this.scene.time.now + duration;
     this.updateStateTint();
     
-    // Visual pulse effect
+    // Visual pulse effect (HOST ONLY)
     this.scene.tweens.add({
       targets: this,
       scaleX: this.scaleX * 1.2,
@@ -589,6 +600,10 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
   }
 
   private onDeath(): void {
+    // GUEST: Skip death logic - host controls all enemy lifecycle
+    // Guest enemies are deactivated via network sync, not death events
+    if (!this.isHost) return;
+    
     const isElite = (this as any).isElite || false;
     
     // Emit detailed kill event for debug overlay
