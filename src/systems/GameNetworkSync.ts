@@ -30,9 +30,9 @@ export class GameNetworkSync {
   private isHost: boolean;
   private playerId: PlayerId;
   
-  // Sync timing
+  // Sync timing - 33ms = 30 updates/sec for smoother gameplay
   private lastSyncTime: number = 0;
-  private syncInterval: number = 66; // Send state every 66ms (15 times/sec)
+  private syncInterval: number = 33;
   
   // Guest state
   private pendingState: GameStateSync | null = null;
@@ -242,14 +242,16 @@ export class GameNetworkSync {
     const player0 = players[0];
     const player1 = players[1];
     
+    // Smoother interpolation for players (0.4 = balance between responsive and smooth)
+    const playerLerp = 0.4;
     if (player0 && p0) {
-      player0.x += (p0.x - player0.x) * 0.3;
-      player0.y += (p0.y - player0.y) * 0.3;
+      player0.x += (p0.x - player0.x) * playerLerp;
+      player0.y += (p0.y - player0.y) * playerLerp;
       if (player0.health) player0.health.setCurrent(p0.health);
     }
     if (player1 && p1) {
-      player1.x += (p1.x - player1.x) * 0.3;
-      player1.y += (p1.y - player1.y) * 0.3;
+      player1.x += (p1.x - player1.x) * playerLerp;
+      player1.y += (p1.y - player1.y) * playerLerp;
       if (player1.health) player1.health.setCurrent(p1.health);
     }
     
@@ -260,15 +262,23 @@ export class GameNetworkSync {
     const newCount = stateEnemies.length;
     const oldCount = this.activeEnemyCount;
     
+    // Interpolation factor - higher = snappier, lower = smoother
+    const lerpFactor = 0.5;
+    
     // Update existing active enemies (indices 0 to min(old, new))
     const updateCount = Math.min(oldCount, newCount);
     for (let i = 0; i < updateCount; i++) {
       const es = stateEnemies[i];
       const enemy = currentEnemies[i];
       
-      // Update position directly (no setActive needed - already active)
-      enemy.x = es.x;
-      enemy.y = es.y;
+      // Smooth interpolation for existing enemies
+      enemy.x += (es.x - enemy.x) * lerpFactor;
+      enemy.y += (es.y - enemy.y) * lerpFactor;
+      
+      // Sync health for HP bar display
+      if (enemy.health && es.health !== undefined) {
+        enemy.health.setCurrent(es.health);
+      }
       
       // Only change texture if type changed
       const textureKey = `enemy_${es.type}_sprite`;
@@ -284,12 +294,19 @@ export class GameNetworkSync {
       
       enemy.setActive(true);
       enemy.setVisible(true);
+      // New enemies snap to position immediately
       enemy.x = es.x;
       enemy.y = es.y;
       
       const textureKey = `enemy_${es.type}_sprite`;
       if (enemy.scene.textures.exists(textureKey)) {
         enemy.setTexture(textureKey);
+      }
+      
+      // Initialize HP bar and health for guest display
+      enemy.initHPBarForGuest();
+      if (enemy.health && es.health !== undefined) {
+        enemy.health.setCurrent(es.health);
       }
     }
     

@@ -599,11 +599,18 @@ export class GameScene extends Phaser.Scene {
         this.networkSync.applyState(state, playerArray, this.enemies, this.projectiles, this.spawnSystem);
       }
       
-      // Update HP bars only every 5 frames (not every frame)
-      if (this.frameCount % 5 === 0) {
+      // Update HP bars every 3 frames
+      if (this.frameCount % 3 === 0) {
+        // Player HP bars
         for (const player of playerArray) {
           if (player.active) {
             player.updateHPBarPublic();
+          }
+        }
+        // Enemy HP bars
+        for (const enemy of enemyArray) {
+          if (enemy.active) {
+            enemy.updateHPBarPosition();
           }
         }
       }

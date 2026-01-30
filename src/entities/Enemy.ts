@@ -144,6 +144,40 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
   }
 
   /**
+   * Initialize HP bar for guest clients (called during network sync)
+   */
+  initHPBarForGuest(): void {
+    if (!this.hpBar) {
+      this.hpBar = this.scene.add.graphics();
+    }
+  }
+  
+  /**
+   * Update HP bar position (called by guest to keep HP bars in sync)
+   */
+  updateHPBarPosition(): void {
+    if (!this.hpBar || !this.active) return;
+    
+    this.hpBar.clear();
+    
+    // Use default size if enemyData not set
+    const size = this.enemyData?.size || 15;
+    const barWidth = size * 2;
+    const barHeight = 3;
+    const x = this.x - barWidth / 2;
+    const y = this.y - size - 8;
+
+    // Background
+    this.hpBar.fillStyle(0x000000, 0.5);
+    this.hpBar.fillRect(x, y, barWidth, barHeight);
+
+    // Current HP - use actual health percentage if available
+    const hpPercentage = this.health?.percentage ?? 1;
+    this.hpBar.fillStyle(0xff0000);
+    this.hpBar.fillRect(x, y, barWidth * hpPercentage, barHeight);
+  }
+
+  /**
    * Simple spawn for network sync - minimal setup, reuses existing texture
    * Much faster than full spawn() for guest clients
    */
