@@ -242,16 +242,29 @@ export class GameNetworkSync {
     const player0 = players[0];
     const player1 = players[1];
     
-    // Smoother interpolation for players (0.4 = balance between responsive and smooth)
-    const playerLerp = 0.4;
+    // Player 1 (host's player) - normal interpolation on guest
+    const otherPlayerLerp = 0.4;
     if (player0 && p0) {
-      player0.x += (p0.x - player0.x) * playerLerp;
-      player0.y += (p0.y - player0.y) * playerLerp;
+      player0.x += (p0.x - player0.x) * otherPlayerLerp;
+      player0.y += (p0.y - player0.y) * otherPlayerLerp;
       if (player0.health) player0.health.setCurrent(p0.health);
     }
+    
+    // Player 2 (guest's player) - gentler lerp to avoid fighting local prediction
+    // Only correct if significantly off from server (> 50 pixels = snap, otherwise gentle lerp)
     if (player1 && p1) {
-      player1.x += (p1.x - player1.x) * playerLerp;
-      player1.y += (p1.y - player1.y) * playerLerp;
+      const dx = p1.x - player1.x;
+      const dy = p1.y - player1.y;
+      const distSq = dx * dx + dy * dy;
+      
+      if (distSq > 2500) { // > 50 pixels off - snap to correct major desync
+        player1.x = p1.x;
+        player1.y = p1.y;
+      } else {
+        // Gentle correction (0.15) to avoid fighting prediction
+        player1.x += dx * 0.15;
+        player1.y += dy * 0.15;
+      }
       if (player1.health) player1.health.setCurrent(p1.health);
     }
     
@@ -315,6 +328,8 @@ export class GameNetworkSync {
       const enemy = currentEnemies[i];
       enemy.setActive(false);
       enemy.setVisible(false);
+      // IMPORTANT: Clear HP bar to prevent orphaned bars on screen
+      enemy.clearHPBar();
     }
     
     // Remember count for next frame

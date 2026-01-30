@@ -153,6 +153,15 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
   }
   
   /**
+   * Clear HP bar (called when enemy is deactivated on guest)
+   */
+  clearHPBar(): void {
+    if (this.hpBar) {
+      this.hpBar.clear();
+    }
+  }
+  
+  /**
    * Update HP bar position (called by guest to keep HP bars in sync)
    */
   updateHPBarPosition(): void {

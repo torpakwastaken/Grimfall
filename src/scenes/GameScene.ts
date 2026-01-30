@@ -585,15 +585,50 @@ export class GameScene extends Phaser.Scene {
       );
       
     } else {
-      // GUEST: Minimal update - just send input and apply state
+      // GUEST: Local prediction + network sync
       
-      // Guest reads WASD keys directly and sends to host for P2 control
-      // Only send if input changed (throttled inside sendInput)
+      // LOCAL MOVEMENT PREDICTION: Move guest's player locally for responsive feel
+      // This prevents the "resistance" feeling from network round-trip delay
+      const guestPlayer = playerArray[1]; // Guest controls Player 2
+      if (guestPlayer && guestPlayer.active && !guestPlayer.isDead) {
+        const input = guestPlayer.getInputState();
+        const speed = guestPlayer.stats.moveSpeed;
+        let vx = 0;
+        let vy = 0;
+        
+        if (input.left) vx -= speed;
+        if (input.right) vx += speed;
+        if (input.up) vy -= speed;
+        if (input.down) vy += speed;
+        
+        // Normalize diagonal movement
+        if (vx !== 0 && vy !== 0) {
+          const factor = Math.SQRT1_2;
+          vx *= factor;
+          vy *= factor;
+        }
+        
+        // Apply local prediction (move player directly)
+        guestPlayer.x += vx * (clampedDelta / 1000);
+        guestPlayer.y += vy * (clampedDelta / 1000);
+        
+        // Clamp to world bounds
+        guestPlayer.x = Math.max(20, Math.min(1980, guestPlayer.x));
+        guestPlayer.y = Math.max(20, Math.min(1980, guestPlayer.y));
+        
+        // Update direction indicator based on movement
+        if (vx !== 0 || vy !== 0) {
+          const angle = Math.atan2(vy, vx);
+          guestPlayer.setDirectionAngle(angle);
+        }
+      }
+      
+      // Send input to host (throttled inside sendInput)
       if (playerArray[0]) {
         this.networkSync.sendInput(playerArray[0]);
       }
       
-      // Apply state received from host (includes projectiles)
+      // Apply state received from host (reconcile with server state)
       const state = this.networkSync.getPendingState();
       if (state) {
         this.networkSync.applyState(state, playerArray, this.enemies, this.projectiles, this.spawnSystem);

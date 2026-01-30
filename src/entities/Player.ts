@@ -452,6 +452,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.updateHPBar();
     this.directionIndicator.setPosition(this.x, this.y - 10);
   }
+  
+  /** Set direction indicator angle (for guest local prediction) */
+  setDirectionAngle(angle: number): void {
+    this.directionIndicator.setRotation(angle + Math.PI / 2);
+  }
 
   destroy(fromScene?: boolean): void {
     this.keys.clear();
