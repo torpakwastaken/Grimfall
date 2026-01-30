@@ -31,7 +31,7 @@ export class GameNetworkSync {
   
   // Sync timing
   private lastSyncTime: number = 0;
-  private syncInterval: number = 50; // Send state every 50ms (20 times/sec)
+  private syncInterval: number = 66; // Send state every 66ms (15 times/sec) - balance between smoothness and performance
   
   // Guest state
   private pendingState: GameStateSync | null = null;
@@ -40,6 +40,7 @@ export class GameNetworkSync {
   
   // Entity tracking for guest
   private enemyMap: Map<string, Enemy> = new Map();
+  private tempEnemyIdSet: Set<string> = new Set(); // Reusable set to avoid allocations
   
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -182,6 +183,7 @@ export class GameNetworkSync {
   
   /**
    * Apply received state to game entities (guest only)
+   * Optimized to reduce CPU usage
    */
   applyState(
     state: GameStateSync,
@@ -191,56 +193,68 @@ export class GameNetworkSync {
   ): void {
     if (this.isHost) return;
     
-    // Apply player states
-    state.players.forEach((ps, i) => {
+    // Apply player states (fast - only 2 players)
+    for (let i = 0; i < state.players.length && i < players.length; i++) {
+      const ps = state.players[i];
       const player = players[i];
       if (player) {
         // Interpolate position for smooth movement
-        const lerpFactor = 0.3;
-        player.x = Phaser.Math.Linear(player.x, ps.x, lerpFactor);
-        player.y = Phaser.Math.Linear(player.y, ps.y, lerpFactor);
+        player.x += (ps.x - player.x) * 0.3;
+        player.y += (ps.y - player.y) * 0.3;
         
-        // Set health using the new method
+        // Set health
         if (player.health) {
           player.health.setCurrent(ps.health);
         }
       }
-    });
+    }
     
-    // Apply enemy states
+    // Build set of active enemy IDs from state (reuse set)
+    const stateEnemyIds = this.tempEnemyIdSet;
+    stateEnemyIds.clear();
+    for (const e of state.enemies) {
+      stateEnemyIds.add(e.id);
+    }
+    
+    // Apply enemy states - use map for O(1) lookups
     const currentEnemies = enemies.getChildren() as Enemy[];
-    const stateEnemyIds = new Set(state.enemies.map(e => e.id));
     
-    // Deactivate enemies not in state
-    currentEnemies.forEach(enemy => {
+    // Deactivate enemies not in state (iterate only once)
+    for (const enemy of currentEnemies) {
       if (enemy.active && enemy.enemyId && !stateEnemyIds.has(enemy.enemyId)) {
         enemy.setActive(false);
         enemy.setVisible(false);
+        this.enemyMap.delete(enemy.enemyId);
       }
-    });
+    }
     
     // Update or spawn enemies from state
-    state.enemies.forEach(es => {
+    for (const es of state.enemies) {
       let enemy = this.enemyMap.get(es.id);
       
       if (!enemy || !enemy.active) {
-        // Find inactive enemy to reuse
-        enemy = currentEnemies.find(e => !e.active) as Enemy;
+        // Find inactive enemy to reuse (limit search)
+        enemy = undefined;
+        for (const e of currentEnemies) {
+          if (!e.active) {
+            enemy = e;
+            break;
+          }
+        }
         if (enemy) {
-          enemy.spawn(es.type, es.x, es.y, 1, es.health);
+          enemy.spawnSimple(es.type, es.x, es.y, es.health);
           enemy.enemyId = es.id;
           this.enemyMap.set(es.id, enemy);
         }
       } else {
-        // Update existing enemy position
-        const lerpFactor = 0.3;
-        enemy.x = Phaser.Math.Linear(enemy.x, es.x, lerpFactor);
-        enemy.y = Phaser.Math.Linear(enemy.y, es.y, lerpFactor);
+        // Update existing enemy position with interpolation
+        enemy.x += (es.x - enemy.x) * 0.3;
+        enemy.y += (es.y - enemy.y) * 0.3;
         if (enemy.health) {
           enemy.health.setCurrent(es.health);
         }
       }
-    });
+    }
   }
   
   isHostPlayer(): boolean {

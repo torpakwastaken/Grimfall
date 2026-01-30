@@ -1,8 +1,16 @@
 import Phaser from 'phaser';
+import { NetworkManager } from '@/systems/NetworkManager';
 
 export class OptionsScene extends Phaser.Scene {
   constructor() {
     super('OptionsScene');
+  }
+  
+  private sendResume(): void {
+    const network = NetworkManager.getInstance();
+    if (network && network.isOnline()) {
+      network.sendResume();
+    }
   }
 
   create(): void {
@@ -30,6 +38,7 @@ export class OptionsScene extends Phaser.Scene {
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
     resumeBtn.on('pointerdown', () => {
+      this.sendResume();
       this.scene.stop('OptionsScene');
       this.scene.resume('GameScene');
     });
@@ -50,6 +59,7 @@ export class OptionsScene extends Phaser.Scene {
 
     // ESC key to resume
     this.input.keyboard?.on('keydown-ESC', () => {
+      this.sendResume();
       this.scene.stop('OptionsScene');
       this.scene.resume('GameScene');
     });

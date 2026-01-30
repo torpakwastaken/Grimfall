@@ -144,6 +144,50 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite implements PooledObject 
   }
 
   /**
+   * Simple spawn for network sync - minimal setup, reuses existing texture
+   * Much faster than full spawn() for guest clients
+   */
+  spawnSimple(type: string, x: number, y: number, health: number): void {
+    this.active = true;
+    this.setActive(true);
+    this.setVisible(true);
+    this.setPosition(x, y);
+    
+    // Only create texture if we don't have one for this type
+    const textureKey = `enemy_${type}`;
+    if (this.scene.textures.exists(textureKey)) {
+      this.setTexture(textureKey);
+    } else {
+      // Fallback - create basic texture once
+      const spriteSize = 30;
+      const key = createEnemySprite(this.scene, type, spriteSize);
+      this.setTexture(key);
+    }
+    
+    // Initialize or update health
+    if (!this.health) {
+      this.health = new Health(this, health, () => this.onDeath(), () => this.onDamage());
+    } else {
+      this.health.setCurrent(health);
+    }
+    
+    // Physics - only add if needed
+    if (!this.body) {
+      this.scene.physics.add.existing(this);
+    }
+    const body = this.body as Phaser.Physics.Arcade.Body | null;
+    if (body) {
+      body.setCircle(15);
+      body.setCollideWorldBounds(true);
+    }
+    
+    // Create hp bar only if needed
+    if (!this.hpBar) {
+      this.hpBar = this.scene.add.graphics();
+    }
+  }
+
+  /**
    * Network spawn - simplified activation for guest clients
    * Spawns an enemy based on minimal state from host
    */

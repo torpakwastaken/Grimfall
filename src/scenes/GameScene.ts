@@ -15,6 +15,7 @@ import { AnimationSystem, createPlayerSprite, createEnemySprite, PALETTE } from 
 import { CoopVFXSystem } from '@/systems/CoopVFXSystem';
 import { initPerformanceManager, getPerformanceManager } from '@/systems/PerformanceConfig';
 import { GameNetworkSync } from '@/systems/GameNetworkSync';
+import { NetworkManager } from '@/systems/NetworkManager';
 import { WeaponConfig } from '@/types/GameTypes';
 
 export class GameScene extends Phaser.Scene {
@@ -369,9 +370,31 @@ export class GameScene extends Phaser.Scene {
 
     // Pause game with ESC key
     this.input.keyboard?.on('keydown-ESC', () => {
+      // Sync pause to partner
+      const network = NetworkManager.getInstance();
+      if (network && network.isOnline()) {
+        network.sendPause();
+      }
       this.scene.pause('GameScene');
       this.scene.launch('OptionsScene');
     });
+    
+    // Listen for partner's pause
+    const network = NetworkManager.getInstance();
+    if (network && network.isOnline()) {
+      network.on('game_paused', () => {
+        if (!this.scene.isPaused('GameScene')) {
+          this.scene.pause('GameScene');
+          this.scene.launch('OptionsScene');
+        }
+      });
+      network.on('game_resumed', () => {
+        if (this.scene.isPaused('GameScene')) {
+          this.scene.resume('GameScene');
+          this.scene.stop('OptionsScene');
+        }
+      });
+    }
   }
   
   // Co-op VFX handlers

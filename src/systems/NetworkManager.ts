@@ -81,6 +81,8 @@ export type NetworkMessage =
   | { type: 'level_up'; level: number; upgradeChoices: any[] }
   | { type: 'upgrade_selected'; playerId: number; upgradeId: string }
   | { type: 'upgrades_applied'; selections: { playerId: number; upgradeId: string }[] }
+  | { type: 'game_paused' }
+  | { type: 'game_resumed' }
   | { type: 'ping' }
   | { type: 'pong'; latency: number }
   | { type: 'error'; message: string };
@@ -383,6 +385,20 @@ export class NetworkManager {
   }
   
   /**
+   * Send pause state to partner
+   */
+  sendPause(): void {
+    this.send({ type: 'game_paused' });
+  }
+  
+  /**
+   * Send resume state to partner
+   */
+  sendResume(): void {
+    this.send({ type: 'game_resumed' });
+  }
+  
+  /**
    * Subscribe to network messages
    */
   on(messageType: string, handler: MessageHandler): void {
@@ -497,6 +513,7 @@ export class NetworkManager {
   getLatency(): number { return this.latency; }
   isHost(): boolean { return this.localPlayerId === 'player1'; }
   isOffline(): boolean { return this.isOfflineMode; }
+  isOnline(): boolean { return !this.isOfflineMode; }
   
   /**
    * Check if both players are ready
